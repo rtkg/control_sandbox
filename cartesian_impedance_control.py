@@ -21,12 +21,13 @@ def simulate(robot, robot_vis, env, period, duration, X_d):
     # Set the reference axes to the desired ee pose
     ref_axes.T = X_d
 
-    t = 0.0
-    V_d = sm.Twist3()  # desired reference body twist is 0
-
+    # Specify a desired diagonal stiffness matrix with translational (k_t) and
+    # rotational (k_r) elements
     k_t = 500.0
     k_r = 0.2
     K = np.diag(np.hstack((np.ones(3)*k_t, np.ones(3)*k_r)))
+    t = 0.0
+    V_d = sm.Twist3()  # desired reference body twist is 0
     while t < duration:
         q = robot.q
         qd = robot.qd
@@ -37,7 +38,7 @@ def simulate(robot, robot_vis, env, period, duration, X_d):
         # compute the forward dynamics
         qdd = np.linalg.inv(robot.inertia(q)) @ (tau - robot.coriolis(q, qd) @ qd-robot.gravload(q))
 
-        # update the robot kinematics
+        # update the robot kinematics using simple euler integration
         robot.q += period * qd
         robot.qd += period * qdd
         robot_vis.q = robot.q
@@ -50,6 +51,9 @@ def simulate(robot, robot_vis, env, period, duration, X_d):
 
 
 if __name__ == "__main__":
+    # This script runs a simple control & simulation loop where the arm end-effector
+    # is perturbed by a given transformation
+
     # Make a Panda robot - unfortunately, the dynamics methods only seem to work on the
     # Denavit-Hartenberg parametrized models, whereas the Swift visualization only
     # works with models from a URDF. That's why we maintain two instances of the same
@@ -73,9 +77,9 @@ if __name__ == "__main__":
     # Make the environment
     env = Swift()
 
-    # Launch the simulator, will open a browser tab in your default
+    # Launch the visualization, will open a browser tab in your default
     # browser (chrome is recommended)
-    # The realtime flag will ask the simulator to simulate as close as
+    # The realtime flag will ask the visualization to display as close as
     # possible to realtime as apposed to as fast as possible
     env.launch(realtime=True)
 
@@ -86,7 +90,7 @@ if __name__ == "__main__":
     period = 0.01
 
     # simulation duration
-    duration = 30.0
+    duration = 5.0
 
     # run control & sim loop
     simulate(robot, robot_vis, env, period, duration, X_d)
