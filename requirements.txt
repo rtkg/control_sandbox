@@ -6,4 +6,4 @@ roboticstoolbox-python
 matplotlib
 trimesh
 networkx
-mujoco>=2.3.4
+mujoco>2.3.4
