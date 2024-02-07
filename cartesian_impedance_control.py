@@ -4,6 +4,9 @@ import spatialmath as sm
 from swift import Swift
 import spatialgeometry as sg
 from controllers.cimp_simple import cimp_simple
+import mujoco
+from mujoco import viewer
+from pathlib import Path
 
 
 def simulate(robot, robot_vis, env, period, duration, X_d):
@@ -51,6 +54,16 @@ def simulate(robot, robot_vis, env, period, duration, X_d):
 
 
 if __name__ == "__main__":
+    xml_path = str(Path(__file__).parent.resolve())+"/mujoco/franka_emika_panda/panda.xml"
+    model = mujoco.MjModel.from_xml_path(xml_path)
+    data = mujoco.MjData(model)
+
+
+    viewer = viewer.launch_passive(model, data)
+    while 1:
+        mujoco.mj_forward(model,data)
+
+
     # This script runs a simple control & simulation loop where the arm end-effector
     # is perturbed by a given transformation
 
