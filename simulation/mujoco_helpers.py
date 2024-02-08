@@ -1,4 +1,5 @@
 import mujoco
+import numpy as np
 
 
 def mjc_qpos_idx(self, joint_names: list) -> np.ndarray:

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import mujoco
 import mujoco.viewer
-
+import numpy as np
 xml_path = str(Path(__file__).parent.resolve())+"/mujoco/franka_emika_panda/panda.xml"
 m = mujoco.MjModel.from_xml_path(xml_path)
 d = mujoco.MjData(m)
@@ -11,6 +11,8 @@ d = mujoco.MjData(m)
 with mujoco.viewer.launch_passive(m, d) as viewer:
     # Close the viewer automatically after 30 wall-seconds.
     start = time.time()
+    q_d = np.array([0., -0.3, 0., -2.2, 0., 2.,  0.78539816])
+    d.qpos[0:7]=q_d
     while viewer.is_running() and time.time() - start < 30:
         step_start = time.time()
 

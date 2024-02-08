@@ -7,9 +7,12 @@ from controllers.cimp_simple import cimp_simple
 import mujoco
 from mujoco import viewer
 from pathlib import Path
+from simulation.mujoco_helpers import mjc_qpos_idx
 
+def simulate(robot, model, data, duration, X_d):
 
-def simulate(robot, robot_vis, env, period, duration, X_d):
+    viewer = viewer.launch_passive(model, data)
+
 
     # end-effector axes for visualization
     ee_axes = sg.Axes(0.1)
@@ -52,16 +55,28 @@ def simulate(robot, robot_vis, env, period, duration, X_d):
 
         t += period  # increase time
 
+    viewer.close()
+
 
 if __name__ == "__main__":
-    xml_path = str(Path(__file__).parent.resolve())+"/mujoco/franka_emika_panda/panda.xml"
+    # control & simulation timestep
+    timestep = 0.005
+
+    # simulation duration
+    duration = 5.0
+
+    # pre-defined reset configuration
+    q_d = np.array([0., -0.3, 0., -2.2, 0., 2.,  0.78539816])
+
+
+    xml_path = str(Path(__file__).parent.resolve())+"/simulation/franka_emika_panda/panda.xml"
     model = mujoco.MjModel.from_xml_path(xml_path)
     data = mujoco.MjData(model)
+    data.qpos[0:7] = q_d
+    model.opt.timestep=timestep
 
 
-    viewer = viewer.launch_passive(model, data)
-    while 1:
-        mujoco.mj_forward(model,data)
+
 
 
     # This script runs a simple control & simulation loop where the arm end-effector
@@ -74,8 +89,27 @@ if __name__ == "__main__":
     robot = rtb.models.DH.Panda()
     robot_vis = rtb.models.Panda()
 
-    q_d = robot_vis.qr  # pre-defined reset configuration
-    X_d = robot.fkine(q_d)  # reference goal pose for the controller
+
+    X_d = robot.fkine(q_d, endlink="panda_link7")  # reference goal pose for the controller
+    # data.site('panda_tool_center_point')
+
+    mujoco.mj_forward(model,data)
+
+    jacp = np.zeros((3, model.nv), dtype=np.float64)
+    jacr = np.zeros((3, model.nv), dtype=np.float64)
+    mujoco.mj_jacSite(model, data, jacp, jacr, model.site('panda_tool_center_point').id)
+
+    jac_mj = np.vstack((jacp[:, 0:7], jacr[:, 0:7])) #
+    R_ew = data.site('panda_tool_center_point').xmat.reshape(3,3).transpose()
+    R_EW = np.zeros((6,6))
+    R_EW[0:3 ,0:3] = R_ew
+    R_EW[3:6, 3:6] = R_ew
+    jac_mj_e = R_EW @ jac_mj # Body jacobian in ee frame
+
+    jac_rt=robot_vis.jacobe(q_d)
+
+    qM_full = np.zeros((model.nv, model.nv))
+    mujoco.mj_fullM(model, qM_full, data.qM)# full invertia matrix, could use mj_mulM
 
     # Perturb the goal pose
     X = X_d * sm.SE3.Rz(np.pi/4, t=[0.1, 0.1, 0.1])
@@ -87,23 +121,9 @@ if __name__ == "__main__":
     robot_vis.q = q
     robot.q = q
 
-    # Make the environment
-    env = Swift()
 
-    # Launch the visualization, will open a browser tab in your default
-    # browser (chrome is recommended)
-    # The realtime flag will ask the visualization to display as close as
-    # possible to realtime as apposed to as fast as possible
-    env.launch(realtime=True)
 
-    env.add(robot_vis)
-    env.step(0.0)  # update visualization
-
-    # control & simulation period
-    period = 0.01
-
-    # simulation duration
-    duration = 5.0
 
     # run control & sim loop
-    simulate(robot, robot_vis, env, period, duration, X_d)
+    simulate(robot, model, data, duration, X_d)
+
