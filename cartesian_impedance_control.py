@@ -59,9 +59,10 @@ if __name__ == "__main__":
     # simulation duration
     duration = 5.0
 
-    # pre-defined reset configuration
+    # pre-defined reference configuration
     q_d = np.array([0., -0.3, 0., -2.2, 0., 2.,  0.78539816])
 
+    # load a model of the Panda manipulator
     xml_path = str(Path(__file__).parent.resolve())+"/simulation/franka_emika_panda/panda.xml"
     model = mujoco.MjModel.from_xml_path(xml_path)
     data = mujoco.MjData(model)
@@ -71,17 +72,15 @@ if __name__ == "__main__":
     # compute forward dynamcis to update kinematic quantities
     mujoco.mj_forward(model, data)
 
+    # get the reference goal pose
     X_d = sm.SE3.Rt(data.site('panda_tool_center_point').xmat.reshape(3, 3), data.site('panda_tool_center_point').xpos)
 
-    # Perturb the goal pose
-    X = X_d * sm.SE3.Rz(np.pi/4, t=[0.1, 0.1, 0.1])
+    # get a perturbed pose
+    X = X_d * sm.SE3.Rz(np.pi, t=[0.1, 0.1, 0.1])
 
     # find and set the joint configuration for the perturbed pose using IK
     res = qpos_from_site_pose(model, data, "panda_tool_center_point", target_pos=X.t, target_quat=sm.base.smb.r2q(X.R))
     data.qpos = res.qpos
-
-    # compute forward dynamcis to update kinematic quantities
-    mujoco.mj_forward(model, data)
 
     # run control & sim loop
     simulate(model, data, duration, X_d)

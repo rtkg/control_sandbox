@@ -50,7 +50,7 @@ def cimp_simple(model, data, X_d, V_d, K):
 
     # just for introspection
     err = X_e.log(twist="true")
-    print(f"Translational error: {norm(err[0:3])}, rotational error: {norm(err[3:6])}")
+    print(f"Translational error: {norm(err[0:3])}[m], rotational error: {norm(err[3:6])}[rad]")
 
     # Mapping the external control force to joint torques and adding the bias
     # (gravity + coriolis) torques
