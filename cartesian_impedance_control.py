@@ -7,9 +7,9 @@ from controllers.cimp_simple import cimp_simple
 import mujoco
 from mujoco import viewer
 from pathlib import Path
-from simulation.mujoco_helpers import mjc_qpos_idx
+from simulation.mujoco_helpers import mjc_body_jacobian, qpos_from_site_pose
 
-def simulate(robot, model, data, duration, X_d):
+def simulate(model, data, duration, X_d):
 
     viewer = viewer.launch_passive(model, data)
 
@@ -59,6 +59,9 @@ def simulate(robot, model, data, duration, X_d):
 
 
 if __name__ == "__main__":
+    # This script runs a simple control & simulation loop where the arm end-effector
+    # is perturbed by a given transformation
+
     # control & simulation timestep
     timestep = 0.005
 
@@ -75,55 +78,24 @@ if __name__ == "__main__":
     data.qpos[0:7] = q_d
     model.opt.timestep=timestep
 
+    # compute forward dynamcis to update kinematic quantities
+    mujoco.mj_forward(model, data)
 
-
-
-
-    # This script runs a simple control & simulation loop where the arm end-effector
-    # is perturbed by a given transformation
-
-    # Make a Panda robot - unfortunately, the dynamics methods only seem to work on the
-    # Denavit-Hartenberg parametrized models, whereas the Swift visualization only
-    # works with models from a URDF. That's why we maintain two instances of the same
-    # robot.
-    robot = rtb.models.DH.Panda()
-    robot_vis = rtb.models.Panda()
-
-
-    X_d = robot.fkine(q_d, endlink="panda_link7")  # reference goal pose for the controller
-    # data.site('panda_tool_center_point')
-
-    mujoco.mj_forward(model,data)
-
-    jacp = np.zeros((3, model.nv), dtype=np.float64)
-    jacr = np.zeros((3, model.nv), dtype=np.float64)
-    mujoco.mj_jacSite(model, data, jacp, jacr, model.site('panda_tool_center_point').id)
-
-    jac_mj = np.vstack((jacp[:, 0:7], jacr[:, 0:7])) #
-    R_ew = data.site('panda_tool_center_point').xmat.reshape(3,3).transpose()
-    R_EW = np.zeros((6,6))
-    R_EW[0:3 ,0:3] = R_ew
-    R_EW[3:6, 3:6] = R_ew
-    jac_mj_e = R_EW @ jac_mj # Body jacobian in ee frame
-
-    jac_rt=robot_vis.jacobe(q_d)
-
-    qM_full = np.zeros((model.nv, model.nv))
-    mujoco.mj_fullM(model, qM_full, data.qM)# full invertia matrix, could use mj_mulM
+    X_d = sm.SE3.Rt(data.site('panda_tool_center_point').xmat.reshape(3, 3), data.site('panda_tool_center_point').xpos)
 
     # Perturb the goal pose
     X = X_d * sm.SE3.Rz(np.pi/4, t=[0.1, 0.1, 0.1])
 
-    # find joint configuration for perturbed pose
-    q = robot.ikine_LM(X, q0=q_d).q
+    # find and set the joint configuration for the perturbed pose using IK
+    res = qpos_from_site_pose(model, data, "panda_tool_center_point", target_pos=X.t, target_quat=sm.base.smb.r2q(X.R))
+    data.qpos = res.qpos
 
-    # Set the joint coordinates to the perturbed q
-    robot_vis.q = q
-    robot.q = q
+    # compute forward dynamcis to update kinematic quantities
+    mujoco.mj_forward(model, data)
 
-
-
+    #qM_full = np.zeros((model.nv, model.nv))
+    #mujoco.mj_fullM(model, qM_full, data.qM)# full invertia matrix, could use mj_mulM
 
     # run control & sim loop
-    simulate(robot, model, data, duration, X_d)
+    simulate(model, data, duration, X_d)
 

@@ -2,7 +2,7 @@ from scipy.linalg import sqrtm
 from numpy.linalg import norm
 
 
-def cimp_simple(robot, X_d, V_d, K):
+def cimp_simple(model, data, X_d, V_d, K):
     '''
     Simple Cartesian Impedance Controller formulated according to the algorithm in [1],
     p. 444, Eq. (11.65) without full arm dynamcis compensation (only gravitational load
