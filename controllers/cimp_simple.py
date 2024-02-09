@@ -33,7 +33,7 @@ def cimp_simple(model, data, X_d, V_d, K):
     dq = data.qvel[0:7]  # current joint velocities
 
     # current robot ee-pose expressed in the base frame, renormalize orientation
-    # quaternion to make sure its valid
+    # quaternion to avoid numerical issues downstream
     quat = sm.base.smb.r2q(data.site('panda_tool_center_point').xmat.reshape(3, 3))
     quat = quat/np.linalg.norm(quat)
     X = sm.SE3.Rt(sm.base.smb.q2r(quat), data.site('panda_tool_center_point').xpos)
