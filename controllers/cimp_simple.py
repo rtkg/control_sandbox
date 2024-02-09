@@ -46,11 +46,8 @@ def cimp_simple(model, data, X_d, V_d, K):
     # twist expressed in the reference frame is transformed to the current ee frame
     # using the Adjoint
     B = 2 * sqrtm(K)  # critical damping assuming unit mass
-    f_e = B @ (X_e.Ad() @ V_d - V) + K @ X_e.log(twist="true")
-
-    # just for introspection
-    err = X_e.log(twist="true")
-    print(f"Translational error: {norm(err[0:3])}[m], rotational error: {norm(err[3:6])}[rad]")
+    x_e = X_e.log(twist="true")  # pose error in exponential coordinates
+    f_e = B @ (X_e.Ad() @ V_d - V) + K @ x_e
 
     # Mapping the external control force to joint torques and adding the bias
     # (gravity + coriolis) torques
@@ -63,4 +60,4 @@ def cimp_simple(model, data, X_d, V_d, K):
     B_ns = 2 * sqrtm(K_ns)
     tau_ns = (np.eye(7)-np.linalg.pinv(J) @ J) @ (K_ns @ (q_ns - q)-B_ns @ dq)
 
-    return tau + tau_ns
+    return tau + tau_ns, x_e
