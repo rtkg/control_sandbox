@@ -32,8 +32,11 @@ def cimp_simple(model, data, X_d, V_d, K):
     q = data.qpos[0:7]  # current joint positions
     dq = data.qvel[0:7]  # current joint velocities
 
-    # current robot ee-pose expressed in the base frame
-    X = sm.SE3.Rt(data.site('panda_tool_center_point').xmat.reshape(3, 3), data.site('panda_tool_center_point').xpos)
+    # current robot ee-pose expressed in the base frame, renormalize orientation
+    # quaternion to make sure its valid
+    quat = sm.base.smb.r2q(data.site('panda_tool_center_point').xmat.reshape(3, 3))
+    quat = quat/np.linalg.norm(quat)
+    X = sm.SE3.Rt(sm.base.smb.q2r(quat), data.site('panda_tool_center_point').xpos)
 
     J = mjc_body_jacobian(model, data)  # ee body jacobian expressed in the ee frame
     V = J @ dq  # current ee body twist
