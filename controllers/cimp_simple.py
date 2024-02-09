@@ -9,11 +9,11 @@ def cimp_simple(model, data, X_d, V_d, K):
     '''
     Simple Cartesian Impedance Controller formulated according to the algorithm in [1],
     p. 444, Eq. (11.65) without full arm dynamcis compensation (only gravitational load
-    is compensated) and a virtual mass of M=0. Note, that this can be seen as a force
-    controller (cf. [1], p. 435, Eq. (11.50)), where the desired external end-effector
-    wrench is specified by a cartesian impedance tracking law. Critical damping is
-    computed automatically in dependence of the given stiffness under a unit mass
-    assumption.
+    and centripetal / coriolis forces are compensated) and a virtual mass of M=0. Note,
+    that this can be seen as a force controller (cf. [1], p. 435, Eq. (11.50)), where
+    the desired external end-effector wrench is specified by a cartesian impedance tracking
+    law. Critical damping is computed automatically in dependence of the given stiffness
+    under a unit mass assumption.
 
     Args:
         model ... MuJoCo model struct

@@ -22,7 +22,7 @@ The controller implementations are located in the `$ROOT/controllers` directory.
 
 ### Simple Cartesian Impedance Controller
 
-This implements a simple Cartesian Impedance Controller using the implementation in [1], p. 444, Eq. (11.65) without full arm dynamcis compensation (only gravitational load is compensated) and a virtual mass of M=0. Note, that this can be seen as a feedforward force controller (cf. [1], p. 435, Eq. (11.50)), where the desired external end-effector wrench is specified by a cartesian impedance tracking law that closes a feedback loop on measured joint positions and velocities.
+This implements a simple Cartesian Impedance Controller using the implementation in [1], p. 444, Eq. (11.65) without full arm dynamcis compensation (only gravitational load and coriolis / centripetal forces are compensated) and a virtual mass of M=0. Note, that this can be seen as a feedforward force controller (cf. [1], p. 435, Eq. (11.50)), where the desired external end-effector wrench is specified by a cartesian impedance tracking law that closes a feedback loop on measured joint positions and velocities.
 
 ## References
 
