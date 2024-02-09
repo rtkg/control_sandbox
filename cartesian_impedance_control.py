@@ -4,7 +4,7 @@ from controllers.cimp_simple import cimp_simple
 import mujoco
 import mujoco.viewer
 from pathlib import Path
-from simulation.mujoco_helpers import mjc_body_jacobian, qpos_from_site_pose
+from simulation.mujoco_helpers import qpos_from_site_pose
 import time
 
 
@@ -12,7 +12,7 @@ def simulate(model, data, duration, X_d):
     # Specify a desired diagonal stiffness matrix with translational (k_t) and
     # rotational (k_r) elements
     k_t = 500.0
-    k_r = 0.2
+    k_r = 50
     K = np.diag(np.hstack((np.ones(3)*k_t, np.ones(3)*k_r)))
     t = 0.0
     V_d = sm.Twist3()  # desired reference body twist is 0
@@ -49,8 +49,6 @@ def simulate(model, data, duration, X_d):
                 time.sleep(time_until_next_step)
 
 
-
-
 if __name__ == "__main__":
     # This script runs a simple control & simulation loop where the arm end-effector
     # is perturbed by a given transformation
@@ -64,12 +62,11 @@ if __name__ == "__main__":
     # pre-defined reset configuration
     q_d = np.array([0., -0.3, 0., -2.2, 0., 2.,  0.78539816])
 
-
     xml_path = str(Path(__file__).parent.resolve())+"/simulation/franka_emika_panda/panda.xml"
     model = mujoco.MjModel.from_xml_path(xml_path)
     data = mujoco.MjData(model)
     data.qpos[0:7] = q_d
-    model.opt.timestep=timestep
+    model.opt.timestep = timestep
 
     # compute forward dynamcis to update kinematic quantities
     mujoco.mj_forward(model, data)
@@ -86,9 +83,5 @@ if __name__ == "__main__":
     # compute forward dynamcis to update kinematic quantities
     mujoco.mj_forward(model, data)
 
-    #qM_full = np.zeros((model.nv, model.nv))
-    #mujoco.mj_fullM(model, qM_full, data.qM)# full invertia matrix, could use mj_mulM
-
     # run control & sim loop
     simulate(model, data, duration, X_d)
-
