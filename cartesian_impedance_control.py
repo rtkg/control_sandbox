@@ -1,32 +1,14 @@
 import numpy as np
-import roboticstoolbox as rtb
 import spatialmath as sm
-from swift import Swift
-import spatialgeometry as sg
 from controllers.cimp_simple import cimp_simple
 import mujoco
-from mujoco import viewer
+import mujoco.viewer
 from pathlib import Path
 from simulation.mujoco_helpers import mjc_body_jacobian, qpos_from_site_pose
+import time
+
 
 def simulate(model, data, duration, X_d):
-
-    viewer = viewer.launch_passive(model, data)
-
-
-    # end-effector axes for visualization
-    ee_axes = sg.Axes(0.1)
-
-    # goal reference axes for visualization
-    ref_axes = sg.Axes(0.1)
-
-    # Add the axes to the environment
-    env.add(ee_axes)
-    env.add(ref_axes)
-
-    # Set the reference axes to the desired ee pose
-    ref_axes.T = X_d
-
     # Specify a desired diagonal stiffness matrix with translational (k_t) and
     # rotational (k_r) elements
     k_t = 500.0
@@ -34,28 +16,39 @@ def simulate(model, data, duration, X_d):
     K = np.diag(np.hstack((np.ones(3)*k_t, np.ones(3)*k_r)))
     t = 0.0
     V_d = sm.Twist3()  # desired reference body twist is 0
-    while t < duration:
-        q = robot.q
-        qd = robot.qd
 
-        # evaluate the controller to get the control torques
-        tau = cimp_simple(robot, X_d, V_d, K)
+    # launch MuJoCo viewer
+    with mujoco.viewer.launch_passive(model, data) as viewer:
 
-        # compute the forward dynamics
-        qdd = np.linalg.inv(robot.inertia(q)) @ (tau - robot.coriolis(q, qd) @ qd-robot.gravload(q))
+        # Close the viewer automatically after the simulation duration expires
+        while viewer.is_running() and t < duration:
+            step_start = time.time()
 
-        # update the robot kinematics using simple euler integration
-        robot.q += period * qd
-        robot.qd += period * qdd
-        robot_vis.q = robot.q
+            # advances simulation by all non-control dependent quantities
+            mujoco.mj_step1(model, data)
 
-        # update the visualization
-        ee_axes.T = robot.fkine(robot.q)
-        env.step(period)
+            # evaluate the controller to get the control torques
+            tau = cimp_simple(model, data, X_d, V_d, K)
 
-        t += period  # increase time
+            # set the MuJoCo controls according to the computed torques
+            data.ctrl[0:7] = tau
 
-    viewer.close()
+            # actuate the finger ctrl to keep closed
+            data.ctrl[7] = -100.0
+
+            # advance simulation fully
+            mujoco.mj_step2(model, data)
+
+            viewer.sync()
+
+            t += model.opt.timestep  # increase time
+
+            # Rudimentary real time keeping for visualization
+            time_until_next_step = model.opt.timestep - (time.time() - step_start)
+            if time_until_next_step > 0:
+                time.sleep(time_until_next_step)
+
+
 
 
 if __name__ == "__main__":

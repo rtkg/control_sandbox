@@ -13,9 +13,8 @@ def cimp_simple(model, data, X_d, V_d, K):
     assumption.
 
     Args:
-        robot (roboticstoolbox.models) ... controlled robot. It is assumed that the
-                                           member variables robot.q and robot.dq are
-                                           set.
+        model ... MuJoCo model struct
+        data ... MuJoCo data struct
         X_d (SE3) ... Desired end-effector pose expressed in the base frame
         V_d (Twist3) .. Desired end-effector body twist expressed in the end-effector
                         frame

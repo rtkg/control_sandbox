@@ -1,9 +1,5 @@
 jinja2
 typeguard
-scipy<1.12.0
 spatialmath-python
-roboticstoolbox-python
 matplotlib
-trimesh
-networkx
 mujoco>2.3.4
