@@ -1,96 +1,87 @@
 import numpy as np
-import roboticstoolbox as rtb
 import spatialmath as sm
-from swift import Swift
-import spatialgeometry as sg
 from controllers.cimp_simple import cimp_simple
+import mujoco
+import mujoco.viewer
+from pathlib import Path
+from simulation.mujoco_helpers import qpos_from_site_pose
+import time
 
 
-def simulate(robot, robot_vis, env, period, duration, X_d):
-
-    # end-effector axes for visualization
-    ee_axes = sg.Axes(0.1)
-
-    # goal reference axes for visualization
-    ref_axes = sg.Axes(0.1)
-
-    # Add the axes to the environment
-    env.add(ee_axes)
-    env.add(ref_axes)
-
-    # Set the reference axes to the desired ee pose
-    ref_axes.T = X_d
-
+def simulate(model, data, duration, X_d):
     # Specify a desired diagonal stiffness matrix with translational (k_t) and
     # rotational (k_r) elements
     k_t = 500.0
-    k_r = 0.2
+    k_r = 50
     K = np.diag(np.hstack((np.ones(3)*k_t, np.ones(3)*k_r)))
     t = 0.0
     V_d = sm.Twist3()  # desired reference body twist is 0
-    while t < duration:
-        q = robot.q
-        qd = robot.qd
 
-        # evaluate the controller to get the control torques
-        tau = cimp_simple(robot, X_d, V_d, K)
+    # launch MuJoCo viewer
+    with mujoco.viewer.launch_passive(model, data) as viewer:
 
-        # compute the forward dynamics
-        qdd = np.linalg.inv(robot.inertia(q)) @ (tau - robot.coriolis(q, qd) @ qd-robot.gravload(q))
+        # Close the viewer automatically after the simulation duration expires
+        while viewer.is_running() and t < duration:
+            step_start = time.time()
 
-        # update the robot kinematics using simple euler integration
-        robot.q += period * qd
-        robot.qd += period * qdd
-        robot_vis.q = robot.q
+            # advances simulation by all non-control dependent quantities
+            mujoco.mj_step1(model, data)
 
-        # update the visualization
-        ee_axes.T = robot.fkine(robot.q)
-        env.step(period)
+            # evaluate the controller to get the control torques
+            tau = cimp_simple(model, data, X_d, V_d, K)
 
-        t += period  # increase time
+            # set the MuJoCo controls according to the computed torques
+            data.ctrl[0:7] = tau
+
+            # actuate the finger ctrl to keep closed
+            data.ctrl[7] = -100.0
+
+            # advance simulation fully
+            mujoco.mj_step2(model, data)
+
+            viewer.sync()
+
+            t += model.opt.timestep  # increase time
+
+            # Rudimentary real time keeping for visualization
+            time_until_next_step = model.opt.timestep - (time.time() - step_start)
+            if time_until_next_step > 0:
+                time.sleep(time_until_next_step)
 
 
 if __name__ == "__main__":
     # This script runs a simple control & simulation loop where the arm end-effector
     # is perturbed by a given transformation
 
-    # Make a Panda robot - unfortunately, the dynamics methods only seem to work on the
-    # Denavit-Hartenberg parametrized models, whereas the Swift visualization only
-    # works with models from a URDF. That's why we maintain two instances of the same
-    # robot.
-    robot = rtb.models.DH.Panda()
-    robot_vis = rtb.models.Panda()
-
-    q_d = robot_vis.qr  # pre-defined reset configuration
-    X_d = robot.fkine(q_d)  # reference goal pose for the controller
-
-    # Perturb the goal pose
-    X = X_d * sm.SE3.Rz(np.pi/4, t=[0.1, 0.1, 0.1])
-
-    # find joint configuration for perturbed pose
-    q = robot.ikine_LM(X, q0=q_d).q
-
-    # Set the joint coordinates to the perturbed q
-    robot_vis.q = q
-    robot.q = q
-
-    # Make the environment
-    env = Swift()
-
-    # Launch the visualization, will open a browser tab in your default
-    # browser (chrome is recommended)
-    # The realtime flag will ask the visualization to display as close as
-    # possible to realtime as apposed to as fast as possible
-    env.launch(realtime=True)
-
-    env.add(robot_vis)
-    env.step(0.0)  # update visualization
-
-    # control & simulation period
-    period = 0.01
+    # control & simulation timestep
+    timestep = 0.005
 
     # simulation duration
     duration = 5.0
 
+    # pre-defined reset configuration
+    q_d = np.array([0., -0.3, 0., -2.2, 0., 2.,  0.78539816])
+
+    xml_path = str(Path(__file__).parent.resolve())+"/simulation/franka_emika_panda/panda.xml"
+    model = mujoco.MjModel.from_xml_path(xml_path)
+    data = mujoco.MjData(model)
+    data.qpos[0:7] = q_d
+    model.opt.timestep = timestep
+
+    # compute forward dynamcis to update kinematic quantities
+    mujoco.mj_forward(model, data)
+
+    X_d = sm.SE3.Rt(data.site('panda_tool_center_point').xmat.reshape(3, 3), data.site('panda_tool_center_point').xpos)
+
+    # Perturb the goal pose
+    X = X_d * sm.SE3.Rz(np.pi/4, t=[0.1, 0.1, 0.1])
+
+    # find and set the joint configuration for the perturbed pose using IK
+    res = qpos_from_site_pose(model, data, "panda_tool_center_point", target_pos=X.t, target_quat=sm.base.smb.r2q(X.R))
+    data.qpos = res.qpos
+
+    # compute forward dynamcis to update kinematic quantities
+    mujoco.mj_forward(model, data)
+
     # run control & sim loop
-    simulate(robot, robot_vis, env, period, duration, X_d)
+    simulate(model, data, duration, X_d)

@@ -1,8 +1,11 @@
 from scipy.linalg import sqrtm
 from numpy.linalg import norm
+from simulation.mujoco_helpers import mjc_body_jacobian
+import spatialmath as sm
+import numpy as np
 
 
-def cimp_simple(robot, X_d, V_d, K):
+def cimp_simple(model, data, X_d, V_d, K):
     '''
     Simple Cartesian Impedance Controller formulated according to the algorithm in [1],
     p. 444, Eq. (11.65) without full arm dynamcis compensation (only gravitational load
@@ -13,9 +16,8 @@ def cimp_simple(robot, X_d, V_d, K):
     assumption.
 
     Args:
-        robot (roboticstoolbox.models) ... controlled robot. It is assumed that the
-                                           member variables robot.q and robot.dq are
-                                           set.
+        model ... MuJoCo model struct
+        data ... MuJoCo data struct
         X_d (SE3) ... Desired end-effector pose expressed in the base frame
         V_d (Twist3) .. Desired end-effector body twist expressed in the end-effector
                         frame
@@ -27,11 +29,14 @@ def cimp_simple(robot, X_d, V_d, K):
             Press.
     '''
 
-    q = robot.q  # current joint positions
-    qd = robot.qd  # current joint velocities
-    X = robot.fkine(q)  # current robot ee-pose expressed in the base frame
-    J = robot.jacobe(q)  # ee body jacobian expressed in the ee frame
-    V = J @ qd  # current ee body twist
+    q = data.qpos[0:7]  # current joint positions
+    dq = data.qvel[0:7]  # current joint velocities
+
+    # current robot ee-pose expressed in the base frame
+    X = sm.SE3.Rt(data.site('panda_tool_center_point').xmat.reshape(3, 3), data.site('panda_tool_center_point').xpos)
+
+    J = mjc_body_jacobian(model, data)  # ee body jacobian expressed in the ee frame
+    V = J @ dq  # current ee body twist
     X_e = X.inv() * X_d  # error pose
 
     # simple impedance control law in exponential coordinates. The desired ee body
@@ -44,7 +49,15 @@ def cimp_simple(robot, X_d, V_d, K):
     err = X_e.log(twist="true")
     print(f"Translational error: {norm(err[0:3])}, rotational error: {norm(err[3:6])}")
 
-    # Mapping the external control force to joint torques and adding the gravitational
-    # load torques
-    tau = robot.gravload(q) + J.transpose() @ f_e
-    return tau
+    # Mapping the external control force to joint torques and adding the bias
+    # (gravity + coriolis) torques
+    tau = data.qfrc_bias[0:7] + J.transpose() @ f_e
+
+    # add the nullspace torques which will bias the manipulator to the desired
+    # nullspace bias configuration
+    q_ns = np.array([0., -0.3, 0., -2.2, 0., 2.,  0.78539816])
+    K_ns = np.eye(7)*0.1
+    B_ns = 2 * sqrtm(K_ns)
+    tau_ns = (np.eye(7)-np.linalg.pinv(J) @ J) @ (K_ns @ (q_ns - q)-B_ns @ dq)
+
+    return tau + tau_ns
