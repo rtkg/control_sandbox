@@ -8,12 +8,8 @@ from simulation.mujoco_helpers import qpos_from_site_pose
 import time
 import matplotlib.pyplot as plt
 
-def simulate(model, data, duration, X_d):
-    # Specify a desired diagonal stiffness matrix with translational (k_t) and
-    # rotational (k_r) elements
-    k_t = 500.0
-    k_r = 50
-    K = np.diag(np.hstack((np.ones(3)*k_t, np.ones(3)*k_r)))
+
+def simulate(model, data, duration, X_d, K):
     t = 0.0
     V_d = sm.Twist3()  # desired reference body twist is 0
 
@@ -31,7 +27,7 @@ def simulate(model, data, duration, X_d):
             mujoco.mj_step1(model, data)
 
             # evaluate the controller to get the control torques
-            tau, x_e[i,:] = cimp_simple(model, data, X_d, V_d, K)
+            tau, x_e[i, :] = cimp_simple(model, data, X_d, V_d, K)
 
             # set the MuJoCo controls according to the computed torques
             data.ctrl[0:7] = tau
@@ -49,8 +45,29 @@ def simulate(model, data, duration, X_d):
             if time_until_next_step > 0:
                 time.sleep(time_until_next_step)
 
-    plt.plot(t_vec, np.linalg.norm(x_e[:, 0:3], axis=1), label="||x_e_trans||")
-    plt.plot(t_vec, np.linalg.norm(x_e[:, 3:6], axis=1), label="||x_e_rot||")
+    fig, axs = plt.subplots(2, 2)
+    axs[0, 0].plot(t_vec, x_e[:, 0:3], label=["e_t_x", "e_t_y", "e_t_z"])
+    axs[0, 0].legend(loc="upper right")
+    axs[0, 0].set_title('Translation Error')
+    axs[0, 1].plot(t_vec, np.linalg.norm(x_e[:, 0:3], axis=1), label="||e_t||")
+    axs[0, 1].legend(loc="upper right")
+    axs[0, 1].set_title('Translation Error Norm')
+    axs[1, 0].plot(t_vec, x_e[:, 3:6], label=["e_r_x", "e_r_y", "e_r_z"])
+    axs[1, 0].legend(loc="upper right")
+    axs[1, 0].set_title('Rotation Error')
+    axs[1, 1].plot(t_vec, np.linalg.norm(x_e[:, 3:6], axis=1), label="||e_r||")
+    axs[1, 1].legend(loc="upper right")
+    axs[1, 1].set_title('Rotation Error Norm')
+
+    axs[0, 0].set(ylabel='e_t [m]')
+    axs[1, 0].set(ylabel='e_r [rad]')
+    axs[1, 0].set(xlabel='t[s]')
+    axs[1, 1].set(xlabel='t[s]')
+
+    # Hide x labels and tick labels for top plots and y ticks for right plots.
+    for ax in axs.flat:
+        ax.label_outer()
+
     plt.legend()
     plt.show()
 
@@ -58,6 +75,12 @@ def simulate(model, data, duration, X_d):
 if __name__ == "__main__":
     # This script runs a simple control & simulation loop where the arm end-effector
     # is perturbed by a given transformation
+
+    # Specify a desired diagonal stiffness matrix with translational (k_t) and
+    # rotational (k_r) elements
+    k_t = 500.0
+    k_r = 50
+    K = np.diag(np.hstack((np.ones(3)*k_t, np.ones(3)*k_r)))
 
     # control & simulation timestep
     timestep = 0.005
@@ -82,11 +105,11 @@ if __name__ == "__main__":
     X_d = sm.SE3.Rt(data.site('panda_tool_center_point').xmat.reshape(3, 3), data.site('panda_tool_center_point').xpos)
 
     # get a perturbed pose
-    X = X_d * sm.SE3.Rz(np.pi / 4, t=[0.1, 0.1, 0.1])
+    X = X_d * sm.SE3.Rz(0*np.pi / 4, t=[0.1, 0.1, 0.1])
 
     # find and set the joint configuration for the perturbed pose using IK
     res = qpos_from_site_pose(model, data, "panda_tool_center_point", target_pos=X.t, target_quat=sm.base.smb.r2q(X.R))
     data.qpos = res.qpos
 
     # run control & sim loop
-    simulate(model, data, duration, X_d)
+    simulate(model, data, duration, X_d, K)
