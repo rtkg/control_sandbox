@@ -64,10 +64,6 @@ def simulate(model, data, duration, X_d, K):
     axs[1, 0].set(xlabel='t[s]')
     axs[1, 1].set(xlabel='t[s]')
 
-    # Hide x labels and tick labels for top plots and y ticks for right plots.
-    for ax in axs.flat:
-        ax.label_outer()
-
     plt.legend()
     plt.show()
 
@@ -105,7 +101,7 @@ if __name__ == "__main__":
     X_d = sm.SE3.Rt(data.site('panda_tool_center_point').xmat.reshape(3, 3), data.site('panda_tool_center_point').xpos)
 
     # get a perturbed pose
-    X = X_d * sm.SE3.Rz(0*np.pi / 4, t=[0.1, 0.1, 0.1])
+    X = X_d * sm.SE3.Rz(np.pi / 4, t=[0.1, 0.1, 0.1])
 
     # find and set the joint configuration for the perturbed pose using IK
     res = qpos_from_site_pose(model, data, "panda_tool_center_point", target_pos=X.t, target_quat=sm.base.smb.r2q(X.R))
