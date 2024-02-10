@@ -46,6 +46,13 @@ def cimp_simple(model, data, X_d, V_d, K):
     # using the Adjoint
     B = 2 * sqrtm(K)  # critical damping assuming unit mass
     x_e = X_e.log(twist="true")  # pose error in exponential coordinates
+
+    # dynamic reparametrization of the orientation error in the vicinity of e_phi = pi
+    # according to https://www.cs.cmu.edu/~spiff/moedit99/expmap.pdf
+    # phi_e = np.linalg.norm(x_e[3:6])
+    # if np.abs(phi_e - np.pi) < 1e-3:
+    #     x_e[3:6]=(1-2*np.pi/phi_e)*x_e[3:6]
+
     f_e = B @ (X_e.Ad() @ V_d - V) + K @ x_e
 
     # Mapping the external control force to joint torques and adding the bias
