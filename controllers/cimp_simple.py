@@ -2,6 +2,7 @@ from scipy.linalg import sqrtm
 from simulation.mujoco_helpers import mjc_body_jacobian
 import spatialmath as sm
 import numpy as np
+from helpers.damped_pinv import damped_pinv
 
 
 def cimp_simple(model, data, X_d, V_d, K):
@@ -77,6 +78,6 @@ def cimp_simple(model, data, X_d, V_d, K):
     q_ns = np.array([0., -0.3, 0., -2.2, 0., 2.,  0.78539816])
     K_ns = np.eye(7)*0.1
     B_ns = 2 * sqrtm(K_ns)
-    tau_ns = (np.eye(7)-np.linalg.pinv(J) @ J) @ (K_ns @ (q_ns - q)-B_ns @ dq)
+    tau_ns = (np.eye(7)-damped_pinv(J, 1e-3) @ J) @ (K_ns @ (q_ns - q)-B_ns @ dq)
 
     return tau + tau_ns, x_e
