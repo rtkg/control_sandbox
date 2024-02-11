@@ -20,6 +20,7 @@ def cimp_simple(model, data, X_d, V_d, K):
         X_d (SE3) ... Desired end-effector pose expressed in the base frame
         V_d (Twist3) .. Desired end-effector body twist expressed in the end-effector
                         frame
+        K (np.ndarray(6 , 6)) ... Desired stiffness expressed in the end-effector frame
 
     Returns:
         tau (np.ndarray) ... joint control torques
@@ -46,15 +47,26 @@ def cimp_simple(model, data, X_d, V_d, K):
     # using the Adjoint
     B = 2 * sqrtm(K)  # critical damping assuming unit mass
     x_e = X_e.log(twist="true")  # pose error in exponential coordinates
-    x_e[0:3] = X_e.t
+    v_e = X_e.Ad() @ V_d - V  # twist error
 
     # dynamic reparametrization of the orientation error in the vicinity of e_phi = pi
     # according to https://www.cs.cmu.edu/~spiff/moedit99/expmap.pdf
-    # phi_e = np.linalg.norm(x_e[3:6])
-    # if np.abs(phi_e - np.pi) < 1e-3:
-    #     x_e[3:6]=(1-2*np.pi/phi_e)*x_e[3:6]
+    if 0:
+        phi_e = np.linalg.norm(x_e[3:6])
+        if np.abs(phi_e - np.pi) < 1e-5:
+            x_e[3:6] = (1-2*np.pi/phi_e)*x_e[3:6]
 
-    f_e = B @ (X_e.Ad() @ V_d - V) + K @ x_e
+    # alternate error formulation where only rotation is parametrized by 3d exponetial
+    # coordinates ([1], p. 420, Eq. (11.18)). This leads to straight-line motions
+    # in position space.
+    if 0:
+        x_e[0:3] = X_e.t
+        L = np.eye(6)
+        L[3:6, 3:6] = X_e.R
+        v_e = L @ V_d - V
+
+    # Computing the external control force
+    f_e = B @ v_e + K @ x_e
 
     # Mapping the external control force to joint torques and adding the bias
     # (gravity + coriolis) torques

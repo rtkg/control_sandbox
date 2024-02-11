@@ -101,7 +101,7 @@ if __name__ == "__main__":
     X_d = sm.SE3.Rt(data.site('panda_tool_center_point').xmat.reshape(3, 3), data.site('panda_tool_center_point').xpos)
 
     # get a perturbed pose
-    X = X_d * sm.SE3.Rz(np.pi / 4, t=[0.1, 0.1, 0.1])
+    X = X_d * sm.SE3.Rz(np.pi * 0.85, t=[0.1, 0.1, 0.1])
 
     # find and set the joint configuration for the perturbed pose using IK
     res = qpos_from_site_pose(model, data, "panda_tool_center_point", target_pos=X.t, target_quat=sm.base.smb.r2q(X.R))
