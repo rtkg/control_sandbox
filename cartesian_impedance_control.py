@@ -6,7 +6,9 @@ import mujoco.viewer
 from pathlib import Path
 from simulation.mujoco_helpers import qpos_from_site_pose
 import time
-import matplotlib.pyplot as plt
+import matplotlib
+
+matplotlib.use("tkagg")
 
 
 def simulate(model, data, duration, X_d, K):
@@ -48,32 +50,32 @@ def simulate(model, data, duration, X_d, K):
                 time.sleep(time_until_next_step)
 
     # Plotting
-    fig, axs = plt.subplots(2, 2)
+    _, axs = matplotlib.pyplot.subplots(2, 2)
     axs[0, 0].plot(t_vec, x_e[:, 0:3], label=["e_t_x", "e_t_y", "e_t_z"])
     axs[0, 0].legend(loc="upper right")
-    axs[0, 0].set_title('Translation Error')
+    axs[0, 0].set_title("Translation Error")
     axs[0, 1].plot(t_vec, f_e[:, 0:3], label=["f_e_x", "f_e_y", "f_e_z"])
     axs[0, 1].legend(loc="upper right")
-    axs[0, 1].set_title('Cartesian Control Forces')
+    axs[0, 1].set_title("Cartesian Control Forces")
     axs[1, 0].plot(t_vec, x_e[:, 3:6], label=["e_r_x", "e_r_y", "e_r_z"])
     axs[1, 0].legend(loc="upper right")
-    axs[1, 0].set_title('Rotation Error')
+    axs[1, 0].set_title("Rotation Error")
     axs[1, 1].plot(t_vec, f_e[:, 3:6], label=["m_e_x", "m_e_y", "m_e_z"])
     axs[1, 1].legend(loc="upper right")
-    axs[1, 1].set_title('Cartesian Control Torques')
+    axs[1, 1].set_title("Cartesian Control Torques")
 
-    axs[0, 0].set(ylabel='e_t [m]')
-    axs[1, 0].set(ylabel='e_r [rad]')
-    axs[0, 1].set(ylabel='f_e [N]')
-    axs[1, 1].set(ylabel='m_e [Nm]')
+    axs[0, 0].set(ylabel="e_t [m]")
+    axs[1, 0].set(ylabel="e_r [rad]")
+    axs[0, 1].set(ylabel="f_e [N]")
+    axs[1, 1].set(ylabel="m_e [Nm]")
 
-    axs[1, 0].set(xlabel='t[s]')
-    axs[1, 1].set(xlabel='t[s]')
+    axs[1, 0].set(xlabel="t[s]")
+    axs[1, 1].set(xlabel="t[s]")
 
     # maximize plot window
-    mng = plt.get_current_fig_manager()
+    mng = matplotlib.pyplot.get_current_fig_manager()
     mng.resize(*mng.window.maxsize())
-    plt.show()
+    matplotlib.pyplot.show()
 
 
 if __name__ == "__main__":
@@ -86,7 +88,7 @@ if __name__ == "__main__":
     k_r = 50.0
     # K = np.diag(np.hstack((np.ones(3)*k_t, np.ones(3)*k_r)))
     # Martin's test case
-    K = np.diag(np.hstack((np.ones(3)*k_t, np.array([1.0, 1.0, 0.0]))))
+    K = np.diag(np.hstack((np.ones(3) * k_t, np.array([1.0, 1.0, 0.0]))))
 
     # control & simulation timestep
     timestep = 0.005
@@ -95,10 +97,13 @@ if __name__ == "__main__":
     duration = 5.0
 
     # pre-defined reference configuration
-    q_d = np.array([0., -0.3, 0., -2.2, 0., 2.,  0.78539816])
+    q_d = np.array([0.0, -0.3, 0.0, -2.2, 0.0, 2.0, 0.78539816])
 
     # load a model of the Panda manipulator
-    xml_path = str(Path(__file__).parent.resolve())+"/simulation/franka_emika_panda/panda.xml"
+    xml_path = (
+        str(Path(__file__).parent.resolve())
+        + "/simulation/franka_emika_panda/panda.xml"
+    )
     model = mujoco.MjModel.from_xml_path(xml_path)
     # The MuJoCo data instance is updated during the simulation. It's the central
     # element which stores all relevant variables
@@ -110,7 +115,10 @@ if __name__ == "__main__":
     mujoco.mj_forward(model, data)
 
     # get the reference goal pose
-    X_d = sm.SE3.Rt(data.site('panda_tool_center_point').xmat.reshape(3, 3), data.site('panda_tool_center_point').xpos)
+    X_d = sm.SE3.Rt(
+        data.site("panda_tool_center_point").xmat.reshape(3, 3),
+        data.site("panda_tool_center_point").xpos,
+    )
 
     # get a perturbed pose
     # X = X_d * sm.SE3.Rz(np.pi * 0.85, t=[0.1, 0.1, 0.1])
@@ -118,7 +126,13 @@ if __name__ == "__main__":
     X = X_d * sm.SE3.Rz(np.pi * 0.7, t=[0.0, 0.0, 0.0])
 
     # find and set the joint configuration for the perturbed pose using IK
-    res = qpos_from_site_pose(model, data, "panda_tool_center_point", target_pos=X.t, target_quat=sm.base.smb.r2q(X.R))
+    res = qpos_from_site_pose(
+        model,
+        data,
+        "panda_tool_center_point",
+        target_pos=X.t,
+        target_quat=sm.base.smb.r2q(X.R),
+    )
     data.qpos = res.qpos
 
     # run control & sim loop

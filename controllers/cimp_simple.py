@@ -6,7 +6,7 @@ from helpers.damped_pinv import damped_pinv
 
 
 def cimp_simple(model, data, X_d, V_d, K):
-    '''
+    """
     Simple Cartesian Impedance Controller formulated according to the algorithm in [1],
     p. 444, Eq. (11.65) without full arm dynamcis compensation (only gravitational load
     and centripetal / coriolis forces are compensated) and a virtual mass of M=0. Note,
@@ -30,26 +30,30 @@ def cimp_simple(model, data, X_d, V_d, K):
 
     [1] ... Lynch, K. M., & Park, F. C. (2017). Modern robotics. Cambridge University
             Press.
-    '''
+    """
 
     q = data.qpos[0:7]  # current joint positions
     dq = data.qvel[0:7]  # current joint velocities
 
     # current robot ee-pose expressed in the base frame, renormalize orientation
     # quaternion to avoid numerical issues downstream
-    quat = sm.base.smb.r2q(data.site('panda_tool_center_point').xmat.reshape(3, 3))
-    quat = quat/np.linalg.norm(quat)
-    X = sm.SE3.Rt(sm.base.smb.q2r(quat), data.site('panda_tool_center_point').xpos)
+    quat = sm.base.smb.r2q(data.site("panda_tool_center_point").xmat.reshape(3, 3))
+    quat = quat / np.linalg.norm(quat)
+    X = sm.SE3.Rt(sm.base.smb.q2r(quat), data.site("panda_tool_center_point").xpos)
 
     J = mjc_body_jacobian(model, data)  # ee body jacobian expressed in the ee frame
     V = J @ dq  # current ee body twist
     X_e = X.inv() * X_d  # error pose
+    q_e = sm.base.smb.r2q(X_e.R)
+
+    X_e.norm()
 
     # simple impedance control law in exponential coordinates. The desired ee body
     # twist expressed in the reference frame is transformed to the current ee frame
     # using the Adjoint
     B = 2 * sqrtm(K)  # critical damping assuming unit mass
-    x_e = X_e.log(twist="true")  # pose error in exponential coordinates
+    x_e = X_e.norm().log(twist="true")  # pose error in exponential coordinates
+
     v_e = X_e.Ad() @ V_d - V  # twist error
 
     # dynamic reparametrization of the orientation error in the vicinity of e_phi = pi
@@ -57,7 +61,7 @@ def cimp_simple(model, data, X_d, V_d, K):
     if 0:
         phi_e = np.linalg.norm(x_e[3:6])
         if np.abs(phi_e - np.pi) < 1e-5:
-            x_e[3:6] = (1-2*np.pi/phi_e)*x_e[3:6]
+            x_e[3:6] = (1 - 2 * np.pi / phi_e) * x_e[3:6]
 
     # alternate error formulation where only rotation is parametrized by 3d exponetial
     # coordinates ([1], p. 420, Eq. (11.18)). This leads to straight-line motions
@@ -77,10 +81,10 @@ def cimp_simple(model, data, X_d, V_d, K):
 
     # add the nullspace torques which will bias the manipulator to the desired
     # nullspace bias configuration
-    q_ns = np.array([0., -0.3, 0., -2.2, 0., 2.,  0.78539816])
-    K_ns = np.eye(7)*0.1
+    q_ns = np.array([0.0, -0.3, 0.0, -2.2, 0.0, 2.0, 0.78539816])
+    K_ns = np.eye(7) * 0.1
     B_ns = 2 * sqrtm(K_ns)
-    tau_ns = (np.eye(7)-damped_pinv(J, 1e-3) @ J) @ (K_ns @ (q_ns - q)-B_ns @ dq)
+    tau_ns = (np.eye(7) - damped_pinv(J, 1e-3) @ J) @ (K_ns @ (q_ns - q) - B_ns @ dq)
 
     # return x_e and f_e for introspection, in addition to the control torques
     return tau + tau_ns, x_e, f_e
