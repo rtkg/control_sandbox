@@ -44,16 +44,12 @@ def cimp_simple(model, data, X_d, V_d, K):
     J = mjc_body_jacobian(model, data)  # ee body jacobian expressed in the ee frame
     V = J @ dq  # current ee body twist
     X_e = X.inv() * X_d  # error pose
-    q_e = sm.base.smb.r2q(X_e.R)
-
-    X_e.norm()
 
     # simple impedance control law in exponential coordinates. The desired ee body
     # twist expressed in the reference frame is transformed to the current ee frame
     # using the Adjoint
     B = 2 * sqrtm(K)  # critical damping assuming unit mass
     x_e = X_e.norm().log(twist="true")  # pose error in exponential coordinates
-
     v_e = X_e.Ad() @ V_d - V  # twist error
 
     # dynamic reparametrization of the orientation error in the vicinity of e_phi = pi
