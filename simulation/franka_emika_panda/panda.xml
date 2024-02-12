@@ -10,8 +10,8 @@
   <default>
     <default class="panda">
       <material specular="0.5" shininess="0.25"/>
-      <joint armature="0.1" damping="0.1" axis="0 0 1" range="-2.8973 2.8973"/>
-      <general dyntype="none" biastype="affine" ctrlrange="-2.8973 2.8973" forcerange="-87 87"/>
+      <joint armature="0.1" damping="0.1" axis="0 0 1" range="-6.283185 6.283185"/>
+      <general dyntype="none" biastype="affine" ctrlrange="-6.283185 6.283185" forcerange="-87 87"/>
       <default class="finger">
         <joint axis="0 1 0" type="slide" range="0 0.04"/>
       </default>
@@ -142,7 +142,7 @@
         <geom mesh="link1_c" class="collision"/>
         <body name="panda_link2" quat="1 -1 0 0">
           <inertial mass="0.646926" pos="-0.003141 -0.02872 0.003495" fullinertia="0.0079620 2.8110e-2 2.5995e-2 -3.925e-3 1.0254e-2 7.04e-4"/>
-          <joint name="panda_joint2" range="-1.7628 1.7628"/>
+          <joint name="panda_joint2"/>
           <geom material="white" mesh="link2" class="visual"/>
           <geom mesh="link2_c" class="collision"/>
           <body name="panda_link3" pos="0 -0.316 0" quat="1 1 0 0">
@@ -155,7 +155,7 @@
             <geom mesh="link3_c" class="collision"/>
             <body name="panda_link4" pos="0.0825 0 0" quat="1 1 0 0">
               <inertial mass="3.587895" pos="-5.317e-2 1.04419e-1 2.7454e-2" fullinertia="2.5853e-2 1.9552e-2 2.8323e-2 7.796e-3 -1.332e-3 8.641e-3"/>
-              <joint name="panda_joint4" range="-3.0718 -0.0698"/>
+              <joint name="panda_joint4"/>
               <geom mesh="link4_0" material="white" class="visual"/>
               <geom mesh="link4_1" material="white" class="visual"/>
               <geom mesh="link4_2" material="black" class="visual"/>
@@ -172,7 +172,7 @@
                 <geom mesh="link5_c2" class="collision"/>
                 <body name="panda_link6" quat="1 1 0 0">
                   <inertial mass="1.666555" pos="6.0149e-2 -1.4117e-2 -1.0517e-2" fullinertia="1.964e-3 4.354e-3 5.433e-3 1.09e-4 -1.158e-3 3.41e-4"/>
-                  <joint name="panda_joint6" range="-0.0175 3.7525"/>
+                  <joint name="panda_joint6"/>
                   <geom mesh="link6_0" material="off_white" class="visual"/>
                   <geom mesh="link6_1" material="white" class="visual"/>
                   <geom mesh="link6_2" material="black" class="visual"/>

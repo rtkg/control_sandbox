@@ -97,7 +97,7 @@ if __name__ == "__main__":
     duration = 5.0
 
     # pre-defined reference configuration
-    q_d = np.array([0.0, -0.3, 0.0, -2.2, 0.0, 2.0, 0.78539816])
+    q_d = np.array([0.0, -0.3, 0.0, -2.2, 0.0, 2.0, 0.0])
 
     # load a model of the Panda manipulator
     xml_path = (
@@ -123,7 +123,7 @@ if __name__ == "__main__":
     # get a perturbed pose
     # X = X_d * sm.SE3.Rz(np.pi * 0.85, t=[0.1, 0.1, 0.1])
     # Martin's test case
-    X = X_d * sm.SE3.Rz(np.pi * 0.7, t=[0.0, 0.0, 0.0])
+    X = X_d * sm.SE3.Rz(np.pi * 0.85, t=[0.0, 0.0, 0.0])
 
     # find and set the joint configuration for the perturbed pose using IK
     res = qpos_from_site_pose(
