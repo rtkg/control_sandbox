@@ -25,6 +25,8 @@ def cimp_simple(model, data, X_d, V_d, K):
 
     Returns:
         tau (np.ndarray) ... joint control torques
+        x_e (np.ndarray) ... pose error
+        f_e  (np.ndarray) ... generated cartesian control force
 
     [1] ... Lynch, K. M., & Park, F. C. (2017). Modern robotics. Cambridge University
             Press.
@@ -66,10 +68,10 @@ def cimp_simple(model, data, X_d, V_d, K):
         L[3:6, 3:6] = X_e.R
         v_e = L @ V_d - V
 
-    # Computing the external control force
+    # Computing the external control wrench
     f_e = B @ v_e + K @ x_e
 
-    # Mapping the external control force to joint torques and adding the bias
+    # Mapping the external control wrench to joint torques and adding the bias
     # (gravity + coriolis) torques
     tau = data.qfrc_bias[0:7] + J.transpose() @ f_e
 
@@ -80,4 +82,5 @@ def cimp_simple(model, data, X_d, V_d, K):
     B_ns = 2 * sqrtm(K_ns)
     tau_ns = (np.eye(7)-damped_pinv(J, 1e-3) @ J) @ (K_ns @ (q_ns - q)-B_ns @ dq)
 
-    return tau + tau_ns, x_e
+    # return x_e and f_e for introspection, in addition to the control torques
+    return tau + tau_ns, x_e, f_e
