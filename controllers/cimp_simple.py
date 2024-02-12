@@ -63,9 +63,9 @@ def cimp_simple(model, data, X_d, V_d, K):
         if np.abs(phi_e - np.pi) < 1e-5:
             x_e[3:6] = (1 - 2 * np.pi / phi_e) * x_e[3:6]
 
-    # alternate error formulation where only rotation is parametrized by 3d exponetial
-    # coordinates ([1], p. 420, Eq. (11.18)). This leads to straight-line motions
-    # in position space.
+    # alternate error formulation where only rotation is parametrized by 3d
+    # exponential coordinates ([1], p. 420, Eq. (11.18)). This leads to
+    # straight-line motions in position space.
     if 0:
         x_e[0:3] = X_e.t
         L = np.eye(6)
@@ -81,7 +81,7 @@ def cimp_simple(model, data, X_d, V_d, K):
 
     # add the nullspace torques which will bias the manipulator to the desired
     # nullspace bias configuration
-    q_ns = np.array([0.0, -0.3, 0.0, -2.2, 0.0, 2.0, 0.78539816])
+    q_ns = np.array([0.0, -0.3, 0.0, -2.2, 0.0, 2.0, 0.0])
     K_ns = np.eye(7) * 0.1
     B_ns = 2 * sqrtm(K_ns)
     tau_ns = (np.eye(7) - damped_pinv(J, 1e-3) @ J) @ (K_ns @ (q_ns - q) - B_ns @ dq)
