@@ -80,7 +80,8 @@ def cimp_simple(model, data, X_d, V_d, K):
     # Mapping the external control wrench to joint torques and compensating
     # the manipulator dynamics (gravity + coriolis / centripetal only).
     # Here, the control forces are scaled by the configuraiton-dependent task-space
-    # inertia matrix to bring them to acceleration space in the closed loop dynamics
+    # inertia matrix to bring them to cartesian acceleration space in the closed loop
+    # dynamics
     tau = data.qfrc_bias[0:7] + J.transpose() @ xM @ (f_e - Jdot @ data.qvel[0:7])
 
     # add the nullspace torques which will bias the manipulator to the desired
