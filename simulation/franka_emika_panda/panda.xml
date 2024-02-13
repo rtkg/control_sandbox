@@ -10,7 +10,7 @@
   <default>
     <default class="panda">
       <material specular="0.5" shininess="0.25"/>
-      <joint armature="0.1" damping="0.1" axis="0 0 1" range="-6.283185 6.283185"/>
+      <joint armature="0.1" damping="0.0" axis="0 0 1" range="-6.283185 6.283185"/>
       <general dyntype="none" biastype="affine" ctrlrange="-6.283185 6.283185" forcerange="-87 87"/>
       <default class="finger">
         <joint axis="0 1 0" type="slide" range="0 0.04"/>
@@ -272,4 +272,9 @@
     <!-- Remap original gripper ctrlrange (0, 0.04) to (0, 0.08): 0.04 * 100 / 0.08 = 50 -->
     <general class="panda" name="hand_actuator" tendon="split" forcerange="-100 100" ctrlrange="0 0.08" gainprm="50.0 0 0" biasprm="0 -100 -10"/>
   </actuator>
+
+  <keyframe>
+    <key name="reset_config" qpos="0.0 -0.3 0.0 -2.2 0.0 2.0 0.78 0.0 0.0" />
+    <key name="nullspace_config" qpos="0.0 -0.3 0.0 -2.2 0.0 2.0 0.78 0.0 0.0" />
+  </keyframe>
 </mujoco>

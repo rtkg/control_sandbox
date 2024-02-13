@@ -18,11 +18,13 @@ def simulate(model, data, duration, X_d, K):
     t_vec = np.arange(0, duration, model.opt.timestep)
     x_e = np.zeros((t_vec.size, 6))
     f_e = np.zeros((t_vec.size, 6))
+    x = np.zeros((t_vec.size, 3))
     # launch MuJoCo viewer
     with mujoco.viewer.launch_passive(model, data) as viewer:
         # Close the viewer automatically after the simulation duration expires
         for i, t in enumerate(t_vec):
             step_start = time.time()
+            x[i, :] = data.site("panda_tool_center_point").xpos
 
             # advances simulation by all non-control dependent quantities
             mujoco.mj_step1(model, data)
@@ -75,6 +77,18 @@ def simulate(model, data, duration, X_d, K):
     # maximize plot window
     mng = matplotlib.pyplot.get_current_fig_manager()
     mng.resize(*mng.window.maxsize())
+
+    # Plot the end-effector path in a separate figure
+    matplotlib.pyplot.figure()
+    ax2 = matplotlib.pyplot.axes(projection="3d")
+    matplotlib.pyplot.plot(x[:, 0], x[:, 1], x[:, 2])
+    matplotlib.pyplot.plot(X_d.t[0], X_d.t[1], X_d.t[2], "r+")
+    ax2.set(ylabel="y")
+    ax2.set(xlabel="x")
+    ax2.set(zlabel="z")
+    ax2.axis("equal")
+    ax2.set_title("End-effector Path")
+
     matplotlib.pyplot.show()
 
 
@@ -86,7 +100,7 @@ if __name__ == "__main__":
     # rotational (k_r) elements
     k_t = 500.0
     k_r = 50.0
-    # K = np.diag(np.hstack((np.ones(3)*k_t, np.ones(3)*k_r)))
+    # K = np.diag(np.hstack((np.ones(3) * k_t, np.ones(3) * k_r)))
     # Martin's test case
     K = np.diag(np.hstack((np.ones(3) * k_t, np.array([1.0, 1.0, 0.0]))))
 
@@ -95,9 +109,6 @@ if __name__ == "__main__":
 
     # simulation duration
     duration = 5.0
-
-    # pre-defined reference configuration
-    q_d = np.array([0.0, -0.3, 0.0, -2.2, 0.0, 2.0, 0.0])
 
     # load a model of the Panda manipulator
     xml_path = (
@@ -108,22 +119,22 @@ if __name__ == "__main__":
     # The MuJoCo data instance is updated during the simulation. It's the central
     # element which stores all relevant variables
     data = mujoco.MjData(model)
-    data.qpos[0:7] = q_d  # the first 7 joints are the arm, the last 2 the gripper
+    data.qpos = model.key('nullspace_config').qpos
     model.opt.timestep = timestep
 
     # compute forward dynamcis to update kinematic quantities
     mujoco.mj_forward(model, data)
 
-    # get the reference goal pose
-    X_d = sm.SE3.Rt(
-        data.site("panda_tool_center_point").xmat.reshape(3, 3),
-        data.site("panda_tool_center_point").xpos,
-    )
+    # design a reference goal pose
+    X_d = sm.SE3.Rx(np.pi, t=np.array([0.5, 0, 0.4]))
 
-    # get a perturbed pose
-    # X = X_d * sm.SE3.Rz(np.pi * 0.85, t=[0.1, 0.1, 0.1])
+    # design a pertubation expressed in the end-effector frame
+    # X_p = sm.SE3.Rz(np.pi / 2, t=np.array([0.1, 0.1, 0.0]))
     # Martin's test case
-    X = X_d * sm.SE3.Rz(np.pi * 0.85, t=[0.0, 0.0, 0.0])
+    X_p = sm.SE3.Rz(np.pi * 0.85, t=np.array([0.0, 0.0, 0.0]))
+
+    # compute the perturbed pose
+    X = X_d * X_p
 
     # find and set the joint configuration for the perturbed pose using IK
     res = qpos_from_site_pose(
@@ -133,6 +144,9 @@ if __name__ == "__main__":
         target_pos=X.t,
         target_quat=sm.base.smb.r2q(X.R),
     )
+    if not res.success:
+        raise RuntimeError("[CartesianImpedanceControl]: IK did not converge.")
+
     data.qpos = res.qpos
 
     # run control & sim loop
