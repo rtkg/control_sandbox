@@ -34,6 +34,21 @@ def mjc_body_jacobian(model, data):
 
 
 def mjc_body_jacobian_derivative(model, data):
+    '''
+    Computes the body jacobian derivative via forward simulation by a small timestep
+    and numerical differentiation as suggested here: https://github.com/google-deepmind/mujoco/issues/411.
+    Currently, this method is hardcoded for the model of the Franka Emika Panda robot.
+    It is assumed, that the kinematic quantities in 'data' are up-to date, i.e., that
+    at least mj_forward(.) was called prior to this function.
+
+    Args:
+        model ... MuJoCo model struct
+        data ... Mujoco data struct
+
+    returns
+        jac_dot ... time derivative of the body jacobian
+    '''
+
     h = 1e-10
     qpos = deepcopy(data.qpos)
     J = mjc_body_jacobian(model, data)
@@ -41,6 +56,8 @@ def mjc_body_jacobian_derivative(model, data):
     mujoco.mj_forward(model, data)
     Jh = mjc_body_jacobian(model, data)
     Jdot = (Jh - J) / h
+
+    # qpos needs to be reset in the data struct
     data.qpos = qpos
     return Jdot
 
