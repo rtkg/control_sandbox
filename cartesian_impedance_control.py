@@ -100,16 +100,15 @@ if __name__ == "__main__":
     # rotational (k_r) elements
     k_t = 500.0
     k_r = 50.0
-    K = np.diag(np.hstack((np.ones(3) * k_t, np.ones(3) * k_r)))
+    # K = np.diag(np.hstack((np.ones(3) * k_t, np.ones(3) * k_r)))
+    # Martin's test case
+    K = np.diag(np.hstack((np.ones(3) * k_t, np.array([1.0, 1.0, 0.0]))))
 
     # control & simulation timestep
     timestep = 0.005
 
     # simulation duration
     duration = 5.0
-
-    # pre-defined reference configuration
-    # q_d = np.array([0.0, -0.3, 0.0, -2.2, 0.0, 2.0, 0.78])
 
     # load a model of the Panda manipulator
     xml_path = (
@@ -120,7 +119,7 @@ if __name__ == "__main__":
     # The MuJoCo data instance is updated during the simulation. It's the central
     # element which stores all relevant variables
     data = mujoco.MjData(model)
-    # data.qpos[0:7] = q_d  # the first 7 joints are the arm, the last 2 the gripper
+    data.qpos = model.key('nullspace_config').qpos
     model.opt.timestep = timestep
 
     # compute forward dynamcis to update kinematic quantities
@@ -130,7 +129,9 @@ if __name__ == "__main__":
     X_d = sm.SE3.Rx(np.pi, t=np.array([0.5, 0, 0.4]))
 
     # design a pertubation expressed in the end-effector frame
-    X_p = sm.SE3.Rz(np.pi / 2, t=np.array([0.1, 0.1, 0.0]))
+    # X_p = sm.SE3.Rz(np.pi / 2, t=np.array([0.1, 0.1, 0.0]))
+    # Martin's test case
+    X_p = sm.SE3.Rz(np.pi * 0.85, t=np.array([0.0, 0.0, 0.0]))
 
     # compute the perturbed pose
     X = X_d * X_p

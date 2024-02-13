@@ -78,12 +78,14 @@ def cimp_simple(model, data, X_d, V_d, K):
     xM = np.linalg.pinv(J @ np.linalg.pinv(qM[0:7, 0:7]) @ J.transpose())
 
     # Mapping the external control wrench to joint torques and compensating
-    # the manipulator dynamics (gravity + coriolis / centripetal only)
+    # the manipulator dynamics (gravity + coriolis / centripetal only).
+    # Here, the control forces are scaled by the configuraiton-dependent task-space
+    # inertia matrix to bring them to acceleration space in the closed loop dynamics
     tau = data.qfrc_bias[0:7] + J.transpose() @ xM @ (f_e - Jdot @ data.qvel[0:7])
 
     # add the nullspace torques which will bias the manipulator to the desired
     # nullspace bias configuration
-    q_ns = np.array([0.0, -0.3, 0.0, -2.2, 0.0, 2.0, 0.0])
+    q_ns = model.key('reset_config').qpos[0:7]
     K_ns = np.eye(7) * 0.1
     B_ns = 2 * sqrtm(K_ns)
     tau_ns = (np.eye(7) - damped_pinv(J, 1e-5) @ J) @ (K_ns @ (q_ns - q) - B_ns @ dq)
