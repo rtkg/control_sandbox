@@ -12,7 +12,6 @@ matplotlib.use("tkagg")
 
 
 def simulate(model, data, duration, X_d, K):
-    t = 0.0
     V_d = sm.Twist3()  # desired reference body twist is 0
 
     t_vec = np.arange(0, duration, model.opt.timestep)
@@ -119,7 +118,7 @@ if __name__ == "__main__":
     # The MuJoCo data instance is updated during the simulation. It's the central
     # element which stores all relevant variables
     data = mujoco.MjData(model)
-    data.qpos = model.key('nullspace_config').qpos
+    data.qpos = model.key('reset_config').qpos
     model.opt.timestep = timestep
 
     # compute forward dynamcis to update kinematic quantities
