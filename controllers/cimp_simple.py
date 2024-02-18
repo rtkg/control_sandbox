@@ -3,6 +3,7 @@ from simulation.mujoco_helpers import mjc_body_jacobian, mjc_body_jacobian_deriv
 import spatialmath as sm
 import numpy as np
 from helpers.damped_pinv import damped_pinv
+from helpers.ec_reparametrization import ec_reparametrization
 import mujoco
 
 
@@ -53,9 +54,7 @@ def cimp_simple(model, data, X_d, V_d, K):
     # dynamic reparametrization of the orientation error in the vicinity of e_phi = pi
     # according to https://www.cs.cmu.edu/~spiff/moedit99/expmap.pdf
     if 0:
-        phi_e = np.linalg.norm(x_e[3:6])
-        if np.abs(phi_e - np.pi) < 1e-5:
-            x_e[3:6] = (1 - 2 * np.pi / phi_e) * x_e[3:6]
+        x_e[3:6] = ec_reparametrization(x_e[3:6])
 
     # alternate error formulation where only rotation is parametrized by 3d
     # exponential coordinates ([1], p. 420, Eq. (11.18)). This leads to
@@ -87,7 +86,7 @@ def cimp_simple(model, data, X_d, V_d, K):
 
     # add the nullspace torques which will bias the manipulator to the desired
     # nullspace bias configuration
-    q_ns = model.key('nullspace_config').qpos[0:7]
+    q_ns = model.key("nullspace_config").qpos[0:7]
     K_ns = np.eye(7) * 0.1
     B_ns = 2 * sqrtm(K_ns)
     tau_ns = (np.eye(7) - damped_pinv(J, 1e-5) @ J) @ (K_ns @ (q_ns - q) - B_ns @ dq)

@@ -118,7 +118,7 @@ if __name__ == "__main__":
     # The MuJoCo data instance is updated during the simulation. It's the central
     # element which stores all relevant variables
     data = mujoco.MjData(model)
-    data.qpos = model.key('reset_config').qpos
+    data.qpos = model.key("reset_config").qpos
     model.opt.timestep = timestep
 
     # compute forward dynamcis to update kinematic quantities
