@@ -54,7 +54,6 @@ def cimp_acc_resolved(model, data, X_d, V_d, K):
     # simple impedance control law in exponential coordinates. The desired ee body
     # twist expressed in the reference frame is transformed to the current ee frame
     # using the Adjoint
-    B = 2 * sqrtm(K)  # critical damping assuming unit mass
     B = 2 * sqrtm(xM) @ sqrtm(K)
     x_e = X_e.norm().log(twist="true")  # pose error in exponential coordinates
     v_e = X_e.Ad() @ V_d - V  # twist error
