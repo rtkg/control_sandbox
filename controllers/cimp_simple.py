@@ -87,9 +87,12 @@ def cimp_simple(model, data, X_d, V_d, K):
     # add the nullspace torques which will bias the manipulator to the desired
     # nullspace bias configuration
     q_ns = model.key("nullspace_config").qpos[0:7]
-    K_ns = np.eye(7) * 0.1
+    K_ns = np.eye(7) * 5
     B_ns = 2 * sqrtm(K_ns)
-    tau_ns = (np.eye(7) - damped_pinv(J, 1e-5) @ J) @ (K_ns @ (q_ns - q) - B_ns @ dq)
+    # compute joint accelerations in the nullspace of the end-effector accelerations
+    ddq_ns = (np.eye(7) - damped_pinv(J, 1e-5) @ J) @ (K_ns @ (q_ns - q) - B_ns @ dq)
+    # map nullspace accelerations to torques
+    tau_ns = qM[0:7, 0:7] @ ddq_ns
 
     # return x_e and f_e for introspection, in addition to the control torques
     return tau + tau_ns, x_e, f_e
