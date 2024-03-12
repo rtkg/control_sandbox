@@ -6,7 +6,7 @@ from helpers.damped_pinv import damped_pinv
 import mujoco
 
 
-def cimp_simple(model, data, X_d, V_d, K):
+def cimp_simple(model, data, X_d, V_d, K, B, f_c_entry):
     """
         Simple Cartesian Impedance Controller formulated according to the algorithm in [1],
         p. 444, Eq. (11.65) without full arm dynamcis compensation (only gravitational load
@@ -19,8 +19,9 @@ def cimp_simple(model, data, X_d, V_d, K):
             X_d (SE3) ... Desired end-effector pose expressed in the base frame
             V_d (Twist3) .. Desired end-effector body twist expressed in the end-effector
                             frame
-            K (np.ndarray(6 , 6)) ... Desired stiffness expressed in the end-effector frame
-
+            K (np.ndarray(6 , 6)) ... Desired stiffness expressed in the end-effector / reference frame
+            B (np.ndarray(6, 6))  ... Desired damping in the end-effector frame
+            f_c (np.ndarray)      ... Desired compliance force+torque from user expressed with regards to enf-effector / reference frame
         Returns:
             tau (np.ndarray) ... joint control torques
             x_e (np.ndarray) ... pose error
@@ -41,21 +42,25 @@ def cimp_simple(model, data, X_d, V_d, K):
 
     J = mjc_body_jacobian(model, data)  # ee body jacobian expressed in the ee frame
     V = J @ dq  # current ee body twist
-    X_e = X.inv() * X_d  # error pose
-
+    X_e = X.inv() * X_d  # error pose (from TCP to ref)
+    X_e_Rot = sm.SE3.Rt(X_e.R) # X_e with zero translation
+    
     # simple impedance control law in exponential coordinates. The desired ee body
     # twist expressed in the reference frame is transformed to the current ee frame
     # using the Adjoint
-    B = 2 * sqrtm(K)  # critical damping assuming unit mass
     x_e = X_e.norm().log(twist="true")  # pose error in exponential coordinates
+    x_r = X_e.inv().norm().log(twist="true") # pose error in exponential coordinates (expressed in reference point)
     v_e = X_e.Ad() @ V_d - V  # twist error
 
     # dynamic reparametrization of the orientation error in the vicinity of e_phi = pi
     # according to https://www.cs.cmu.edu/~spiff/moedit99/expmap.pdf
-    if 0:
+    if 1:
         phi_e = np.linalg.norm(x_e[3:6])
         if np.abs(phi_e - np.pi) < 1e-5:
             x_e[3:6] = (1 - 2 * np.pi / phi_e) * x_e[3:6]
+        phi_er = np.linalg.norm(x_r[3:6])
+        if np.abs(phi_er - np.pi) < 1e-5:
+            x_r[3:6] = (1 - 2 * np.pi / phi_er) * x_r[3:6]
 
     # alternate error formulation where only rotation is parametrized by 3d
     # exponential coordinates ([1], p. 420, Eq. (11.18)). This leads to
@@ -65,10 +70,23 @@ def cimp_simple(model, data, X_d, V_d, K):
         L = np.eye(6)
         L[3:6, 3:6] = X_e.R
         v_e = L @ V_d - V
+        # hybrid control value expressed within the reference frame (X)
+        x_r[0:3] = X_e.inv().t
+
+    # external compliance entry
+    f_c = X_e_Rot.Ad() @ f_c_entry # express it in the tcp frame
 
     # Computing the external control wrench
-    f_e = B @ v_e + K @ x_e
-
+    if 1:
+        # stiffness with regards to reference point, damping in 
+        f_e = B @ v_e - X_e.Ad() @ (K @ x_r)
+        # recalculate into 
+        f_c = X_e_Rot.Ad() @ f_c_entry
+    else:
+        # stiffness + damping expressed regarding end-effector
+        f_e = B @ v_e + K @ x_e
+        f_c = f_c_entry
+        
     # Jacobian derivative
     Jdot = mjc_body_jacobian_derivative(model, data)
 
@@ -82,14 +100,20 @@ def cimp_simple(model, data, X_d, V_d, K):
     # Here, the control forces are scaled by the configuraiton-dependent task-space
     # inertia matrix to bring them to cartesian acceleration space in the closed loop
     # dynamics
-    tau = data.qfrc_bias[0:7] + J.transpose() @ xM @ (f_e - Jdot @ data.qvel[0:7])
-
+    #cmd = f_e + f_c - Jdot @ data.qvel[0:7] 
+    cmd = xM @ (f_e + f_c - Jdot @ data.qvel[0:7])
+    tau = data.qfrc_bias[0:7] + J.transpose() @ cmd
+    
+    # tau = data.qfrc_bias[0:7] + J.transpose() @ (f_e)
+    # tau = data.qfrc_bias[0:7] + J.transpose() @ f_e
+    
     # add the nullspace torques which will bias the manipulator to the desired
     # nullspace bias configuration
     q_ns = model.key('reset_config').qpos[0:7]
     K_ns = np.eye(7) * 0.1
-    B_ns = 2 * sqrtm(K_ns)
+    B_ns = 10 * sqrtm(K_ns)
     tau_ns = (np.eye(7) - damped_pinv(J, 1e-5) @ J) @ (K_ns @ (q_ns - q) - B_ns @ dq)
 
     # return x_e and f_e for introspection, in addition to the control torques
+    #return tau, x_e, f_e
     return tau + tau_ns, x_e, f_e

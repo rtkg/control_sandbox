@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.linalg import sqrtm
 import spatialmath as sm
 from controllers.cimp_simple import cimp_simple
 import mujoco
@@ -8,10 +9,10 @@ from simulation.mujoco_helpers import qpos_from_site_pose
 import time
 import matplotlib
 
-matplotlib.use("tkagg")
+#matplotlib.use("tkagg")
 
 
-def simulate(model, data, duration, X_d, K):
+def simulate(model, data, duration, X_d, K, B, f_c, plotting):
     t = 0.0
     V_d = sm.Twist3()  # desired reference body twist is 0
 
@@ -31,7 +32,7 @@ def simulate(model, data, duration, X_d, K):
 
             # evaluate the controller to get the control torques, as well as pose error
             # and control wrenches for introspection
-            tau, x_e[i, :], f_e[i, :] = cimp_simple(model, data, X_d, V_d, K)
+            tau, x_e[i, :], f_e[i, :] = cimp_simple(model, data, X_d, V_d, K, B, f_c)
 
             # set the MuJoCo controls according to the computed torques
             data.ctrl[0:7] = tau
@@ -52,45 +53,46 @@ def simulate(model, data, duration, X_d, K):
                 time.sleep(time_until_next_step)
 
     # Plotting
-    _, axs = matplotlib.pyplot.subplots(2, 2)
-    axs[0, 0].plot(t_vec, x_e[:, 0:3], label=["e_t_x", "e_t_y", "e_t_z"])
-    axs[0, 0].legend(loc="upper right")
-    axs[0, 0].set_title("Translation Error")
-    axs[0, 1].plot(t_vec, f_e[:, 0:3], label=["f_e_x", "f_e_y", "f_e_z"])
-    axs[0, 1].legend(loc="upper right")
-    axs[0, 1].set_title("Cartesian Control Forces")
-    axs[1, 0].plot(t_vec, x_e[:, 3:6], label=["e_r_x", "e_r_y", "e_r_z"])
-    axs[1, 0].legend(loc="upper right")
-    axs[1, 0].set_title("Rotation Error")
-    axs[1, 1].plot(t_vec, f_e[:, 3:6], label=["m_e_x", "m_e_y", "m_e_z"])
-    axs[1, 1].legend(loc="upper right")
-    axs[1, 1].set_title("Cartesian Control Torques")
+    if (plotting):
+        _, axs = matplotlib.pyplot.subplots(2, 2)
+        axs[0, 0].plot(t_vec, x_e[:, 0:3], label=["e_t_x", "e_t_y", "e_t_z"])
+        axs[0, 0].legend(loc="upper right")
+        axs[0, 0].set_title("Translation Error")
+        axs[0, 1].plot(t_vec, f_e[:, 0:3], label=["f_e_x", "f_e_y", "f_e_z"])
+        axs[0, 1].legend(loc="upper right")
+        axs[0, 1].set_title("Cartesian Control Forces")
+        axs[1, 0].plot(t_vec, x_e[:, 3:6], label=["e_r_x", "e_r_y", "e_r_z"])
+        axs[1, 0].legend(loc="upper right")
+        axs[1, 0].set_title("Rotation Error")
+        axs[1, 1].plot(t_vec, f_e[:, 3:6], label=["m_e_x", "m_e_y", "m_e_z"])
+        axs[1, 1].legend(loc="upper right")
+        axs[1, 1].set_title("Cartesian Control Torques")
 
-    axs[0, 0].set(ylabel="e_t [m]")
-    axs[1, 0].set(ylabel="e_r [rad]")
-    axs[0, 1].set(ylabel="f_e [N]")
-    axs[1, 1].set(ylabel="m_e [Nm]")
+        axs[0, 0].set(ylabel="e_t [m]")
+        axs[1, 0].set(ylabel="e_r [rad]")
+        axs[0, 1].set(ylabel="f_e [N]")
+        axs[1, 1].set(ylabel="m_e [Nm]")
 
-    axs[1, 0].set(xlabel="t[s]")
-    axs[1, 1].set(xlabel="t[s]")
+        axs[1, 0].set(xlabel="t[s]")
+        axs[1, 1].set(xlabel="t[s]")
 
-    # maximize plot window
-    mng = matplotlib.pyplot.get_current_fig_manager()
-    mng.resize(*mng.window.maxsize())
+        # maximize plot window
+        mng = matplotlib.pyplot.get_current_fig_manager()
+        mng.resize(*mng.window.maxsize())
 
-    # Plot the end-effector path in a separate figure
-    matplotlib.pyplot.figure()
-    ax2 = matplotlib.pyplot.axes(projection="3d")
-    matplotlib.pyplot.plot(x[:, 0], x[:, 1], x[:, 2])
-    matplotlib.pyplot.plot(X_d.t[0], X_d.t[1], X_d.t[2], "r+")
-    ax2.set(ylabel="y")
-    ax2.set(xlabel="x")
-    ax2.set(zlabel="z")
-    ax2.axis("equal")
-    ax2.set_title("End-effector Path")
+        # Plot the end-effector path in a separate figure
+        matplotlib.pyplot.figure()
+        ax2 = matplotlib.pyplot.axes(projection="3d")
+        matplotlib.pyplot.plot(x[:, 0], x[:, 1], x[:, 2])
+        matplotlib.pyplot.plot(X_d.t[0], X_d.t[1], X_d.t[2], "r+")
+        ax2.set(ylabel="y")
+        ax2.set(xlabel="x")
+        ax2.set(zlabel="z")
+        ax2.axis("equal")
+        ax2.set_title("End-effector Path")
 
-    matplotlib.pyplot.show()
-
+        matplotlib.pyplot.show()
+    
 
 if __name__ == "__main__":
     # This script runs a simple control & simulation loop where the arm end-effector
@@ -98,17 +100,32 @@ if __name__ == "__main__":
 
     # Specify a desired diagonal stiffness matrix with translational (k_t) and
     # rotational (k_r) elements
-    k_t = 500.0
+    k_t = 5000.0
     k_r = 50.0
     # K = np.diag(np.hstack((np.ones(3) * k_t, np.ones(3) * k_r)))
     # Martin's test case
-    K = np.diag(np.hstack((np.ones(3) * k_t, np.array([1.0, 1.0, 0.0]))))
+    #K = np.diag(np.hstack((np.ones(3) * k_t, np.array([10.0, 10.0, 10.0]))))
+    K = np.diag(np.hstack((np.array([5000.0, 5000.0, 0.0]), np.array([0.0, 20.0, 20.0]))))
+
+    # Damping matrix entry
+    B = 2 * sqrtm(K)  # critical damping assuming unit mass
+    print(B)
+    if 1:
+        B[0, 0] = 10.0
+        B[1, 1] = 10.0
+        B[2, 2] = 10.0
+        B[3, 3] = 6.32455532 
+        B[4, 4] = 6.32455532
+        B[5, 5] = 6.32455532 
+
+    # Target compliance (if user wants robot to generate force/torque along given axes)
+    f_c = np.array([0.0, 0.0, 0.5, 0.0, 0.0, 0.0])
 
     # control & simulation timestep
     timestep = 0.005
 
     # simulation duration
-    duration = 5.0
+    duration = 1500.0
 
     # load a model of the Panda manipulator
     xml_path = (
@@ -129,10 +146,13 @@ if __name__ == "__main__":
     X_d = sm.SE3.Rx(np.pi, t=np.array([0.5, 0, 0.4]))
 
     # design a pertubation expressed in the end-effector frame
+    # - no initial perturbation used here    
+    X_p = sm.SE3.Rx(0.0, t=np.array([0.0, 0.0, 0.0]))
+    
     # X_p = sm.SE3.Rz(np.pi / 2, t=np.array([0.1, 0.1, 0.0]))
     # Martin's test case
-    X_p = sm.SE3.Rz(np.pi * 0.85, t=np.array([0.0, 0.0, 0.0]))
-
+    #X_p = sm.SE3.Rx(-np.pi/2, t=np.array([0.0, 0.0, 0.0]))
+    
     # compute the perturbed pose
     X = X_d * X_p
 
@@ -148,6 +168,6 @@ if __name__ == "__main__":
         raise RuntimeError("[CartesianImpedanceControl]: IK did not converge.")
 
     data.qpos = res.qpos
-
+    
     # run control & sim loop
-    simulate(model, data, duration, X_d, K)
+    simulate(model, data, duration, X_d, K, B, f_c, False)
