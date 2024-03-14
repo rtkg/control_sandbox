@@ -51,11 +51,6 @@ def hybrid_force_cimp(model, data, X_d, V_d, K):
     x_e = X_e.norm().log(twist="true")  # pose error in exponential coordinates
     v_e = X_e.Ad() @ V_d - V  # twist error
 
-    # dynamic reparametrization of the orientation error in the vicinity of e_phi = pi
-    # according to https://www.cs.cmu.edu/~spiff/moedit99/expmap.pdf
-    if 0:
-        x_e[3:6] = ec_reparametrization(x_e[3:6])
-
     # alternate error formulation where only rotation is parametrized by 3d
     # exponential coordinates ([1], p. 420, Eq. (11.18)). This leads to
     # straight-line motions in position space.
