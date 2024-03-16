@@ -40,10 +40,6 @@ def simulate(
             # set the MuJoCo controls according to the computed torques
             data.ctrl[0:7] = tau
 
-            # actuate the finger ctrl to keep the gripper closed (a single force acts
-            # on both fingers)
-            data.ctrl[7] = -100.0
-
             # advance simulation fully, including the control torques
             mujoco.mj_step2(model, data)
 
@@ -113,9 +109,9 @@ if __name__ == "__main__":
         [[0, 0, 1, 0, 0, 0]]
     )  # force control in z-direction, A * V = 0 -> v_z = 0
 
-    # A = np.zeros((6, 6))
+    A = np.zeros((6, 6))
 
-    A = np.eye(6)
+    # A = np.eye(6)
 
     # A[0, 0] = 0
     # A[2, 2] = 1

@@ -79,7 +79,7 @@ def hybrid_force_cimp(model, data, X_d, V_d, K, A, f, stiffness_frame="reference
         x_e[0:3] = X_e.t
 
     # task-space manipulator inertia
-    qM = np.zeros((9, 9))
+    qM = np.zeros((7, 7))
     mujoco.mj_fullM(model, qM, data.qM)
     xM = np.linalg.pinv(J @ np.linalg.pinv(qM[0:7, 0:7]) @ J.transpose())
 

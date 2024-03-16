@@ -12,30 +12,12 @@
       <material specular="0.5" shininess="0.25"/>
       <joint armature="0.1" damping="0.0" axis="0 0 1" range="-6.283185 6.283185"/>
       <general dyntype="none" biastype="affine" ctrlrange="-6.283185 6.283185" forcerange="-87 87"/>
-      <default class="finger">
-        <joint axis="0 1 0" type="slide" range="0 0.04"/>
-      </default>
 
       <default class="visual">
         <geom type="mesh" contype="0" conaffinity="0" group="2"/>
       </default>
       <default class="collision">
         <geom type="mesh" group="3"/>
-        <default class="fingertip_pad_collision_1">
-          <geom type="box" size="0.0085 0.004 0.0085" pos="0 0.0055 0.0445"/>
-        </default>
-        <default class="fingertip_pad_collision_2">
-          <geom type="box" size="0.003 0.002 0.003" pos="0.0055 0.002 0.05"/>
-        </default>
-        <default class="fingertip_pad_collision_3">
-          <geom type="box" size="0.003 0.002 0.003" pos="-0.0055 0.002 0.05"/>
-        </default>
-        <default class="fingertip_pad_collision_4">
-          <geom type="box" size="0.003 0.002 0.0035" pos="0.0055 0.002 0.0395"/>
-        </default>
-        <default class="fingertip_pad_collision_5">
-          <geom type="box" size="0.003 0.002 0.0035" pos="-0.0055 0.002 0.0395"/>
-        </default>
       </default>
     </default>
   </default>
@@ -115,8 +97,6 @@
     <mesh file="hand_2.obj"/>
     <mesh file="hand_3.obj"/>
     <mesh file="hand_4.obj"/>
-    <mesh file="finger_0.obj"/>
-    <mesh file="finger_1.obj"/>
   </asset>
 
   <worldbody>
@@ -217,30 +197,6 @@
                       <geom mesh="hand_3" material="white" class="visual"/>
                       <geom mesh="hand_4" material="off_white" class="visual"/>
                       <geom mesh="hand_c" class="collision"/>
-                      <body name="left_finger" pos="0 0 0.0584">
-                        <inertial mass="0.015" pos="0 0 0" diaginertia="2.375e-6 2.375e-6 7.5e-7"/>
-                        <joint name="finger_joint1" class="finger"/>
-                        <geom mesh="finger_0" material="off_white" class="visual"/>
-                        <geom mesh="finger_1" material="black" class="visual"/>
-                        <geom mesh="finger_0" class="collision"/>
-                        <geom class="fingertip_pad_collision_1"/>
-                        <geom class="fingertip_pad_collision_2"/>
-                        <geom class="fingertip_pad_collision_3"/>
-                        <geom class="fingertip_pad_collision_4"/>
-                        <geom class="fingertip_pad_collision_5"/>
-                      </body>
-                      <body name="right_finger" pos="0 0 0.0584" quat="0 0 0 1">
-                        <inertial mass="0.015" pos="0 0 0" diaginertia="2.375e-6 2.375e-6 7.5e-7"/>
-                        <joint name="finger_joint2" class="finger"/>
-                        <geom mesh="finger_0" material="off_white" class="visual"/>
-                        <geom mesh="finger_1" material="black" class="visual"/>
-                        <geom mesh="finger_0" class="collision"/>
-                        <geom class="fingertip_pad_collision_1"/>
-                        <geom class="fingertip_pad_collision_2"/>
-                        <geom class="fingertip_pad_collision_3"/>
-                        <geom class="fingertip_pad_collision_4"/>
-                        <geom class="fingertip_pad_collision_5"/>
-                      </body>
                     </body>
                   </body>
                 </body>
@@ -252,16 +208,6 @@
     </body>
   </worldbody>
 
-  <tendon>
-    <fixed name="split">
-      <joint joint="finger_joint1" coef="0.5"/>
-      <joint joint="finger_joint2" coef="0.5"/>
-    </fixed>
-  </tendon>
-
-  <equality>
-    <joint joint1="finger_joint1" joint2="finger_joint2" solimp="0.95 0.99 0.001" solref="0.005 1"/>
-  </equality>
 
   <actuator>
     <!-- Simple direct torque actuators for the arm joints -->
@@ -272,12 +218,11 @@
     <motor class="panda" name="panda_joint5_actuator" ctrllimited="true" ctrlrange="-12.0 12.0" gear="1.0" joint="panda_joint5"/>
     <motor class="panda" name="panda_joint6_actuator" ctrllimited="true" ctrlrange="-12.0 12.0" gear="1.0" joint="panda_joint6"/>
     <motor class="panda" name="panda_joint7_actuator" ctrllimited="true" ctrlrange="-12.0 12.0" gear="1.0" joint="panda_joint7"/>
-    <!-- Remap original gripper ctrlrange (0, 0.04) to (0, 0.08): 0.04 * 100 / 0.08 = 50 -->
-    <general class="panda" name="hand_actuator" tendon="split" forcerange="-100 100" ctrlrange="0 0.08" gainprm="50.0 0 0" biasprm="0 -100 -10"/>
+
   </actuator>
 
   <keyframe>
-    <key name="reset_config" qpos="0.0 -0.3 0.0 -2.2 0.0 2.0 0.78 0.0 0.0" />
-    <key name="nullspace_config" qpos="0.0 -0.3 0.0 -2.2 0.0 2.0 0.78 0.0 0.0" />
+    <key name="reset_config" qpos="0.0 -0.3 0.0 -2.2 0.0 2.0 0.78" />
+    <key name="nullspace_config" qpos="0.0 -0.3 0.0 -2.2 0.0 2.0 0.78" />
   </keyframe>
 </mujoco>
