@@ -3,3 +3,4 @@ typeguard
 spatialmath-python
 matplotlib
 mujoco>2.3.4
+PyQt5

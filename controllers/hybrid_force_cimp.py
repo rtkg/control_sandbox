@@ -7,28 +7,31 @@ from helpers.ec_reparametrization import ec_reparametrization
 import mujoco
 
 
-def hybrid_force_cimp(model, data, X_d, V_d, K):
+def hybrid_force_cimp(model, data, X_d, V_d, K, A, f, stiffness_frame="reference"):
     """
-        Simple Cartesian Impedance Controller formulated according to the algorithm in [1],
-        p. 444, Eq. (11.65) without full arm dynamcis compensation (only gravitational load
-        and centripetal / coriolis forces are compensated) and a virtual mass of M=0. Note,
-        that this can be seen as a force controller (cf. [1], p. 435, Eq. (11.50)), where
-        the desired external end-effector wrench is specified by a cartesian impedance
-        tracking law. Critical damping is computed automatically in dependence of the given
-        stiffness under a unit mass assumption.
-    Jdot @ data.qvel[0:7]. MuJoCo data struct
-            X_d (SE3) ... Desired end-effector pose expressed in the base frame
-            V_d (Twist3) .. Desired end-effector body twist expressed in the end-effector
-                            frame
-            K (np.ndarray(6 , 6)) ... Desired stiffness expressed in the end-effector frame
+    Hybrid force Impedance Controller formulated according to the algorithm in [1],
+    p. 441, Eq. (11.61) without full arm dynamcis compensation (only gravitational load
+    and centripetal / coriolis forces are compensated) and a virtual mass of M=0. Approximate
+    critical damping is computed automatically in dependence of the given stiffness under a
+    unit mass assumption.
 
-        Returns:
-            tau (np.ndarray) ... joint control torques
-            x_e (np.ndarray) ... pose error
-            f_e  (np.ndarray) ... generated cartesian control force
+    Args:
+        X_d (SE3) ... Desired end-effector pose expressed in the base frame
+        V_d (Twist3) .. Desired end-effector body twist expressed in the end-effector
+                        frame
+        K (np.ndarray(6 , 6)) ... Desired stiffness
+        A (np.ndarray(k, 6)) ... Pfaffian constraint matrix such that A * V = 0
+        f (np.ndarray(6)) ... Arbitrary desired contact wrench
+        stiffness_frame (string) ... "reference" or "end_effector" - specifies in which frame
+                                     K, A, and f are expressed
 
-        [1] ... Lynch, K. M., & Park, F. C. (2017). Modern robotics. Cambridge University
-                Press.
+    Returns:
+        tau (np.ndarray) ... joint control torques
+        x_e (np.ndarray) ... pose error
+        f_u  (np.ndarray) ... generated cartesian control force
+
+    [1] ... Lynch, K. M., & Park, F. C. (2017). Modern robotics. Cambridge University
+            Press.
     """
 
     q = data.qpos[0:7]  # current joint positions
@@ -41,43 +44,61 @@ def hybrid_force_cimp(model, data, X_d, V_d, K):
     X = sm.SE3.Rt(sm.base.smb.q2r(quat), data.site("panda_tool_center_point").xpos)
 
     J = mjc_body_jacobian(model, data)  # ee body jacobian expressed in the ee frame
+    Jdot = mjc_body_jacobian_derivative(model, data)  # Jacobian derivative
     V = J @ dq  # current ee body twist
-    X_e = X.inv() * X_d  # error pose
 
-    # simple impedance control law in exponential coordinates. The desired ee body
-    # twist expressed in the reference frame is transformed to the current ee frame
+    # =============== Cartesian wrench-resolved control law ==================
+    # the control law is formulated w.r.t. the ee-frame if K, A, and f are expressed in the reference
+    # frame, they need to be transformed
+
+    B = 2 * sqrtm(K)  # critical damping approximation assuming unit mass
+    X_e = X.inv() * X_d  # error pose (i.e., the ref frame expressed in the  ee frame)
+    Ad_e = X_e.Ad()  # adjoint of the error pose
+
+    if stiffness_frame == "end_effector":
+        pass  # do nothing
+    elif stiffness_frame == "reference":
+        # transform K, A, and f to the end-effector frame
+        K = Ad_e @ K @ Ad_e.T  # stiffness is a 2nd order contravariant tensor
+        B = Ad_e @ B @ Ad_e.T
+        A = A @ Ad_e  # express reference body twist constraints in the spatial ee frame
+        f = Ad_e @ f  # corresponding reference wrench acting on the ee frame origin
+    else:
+        raise ValueError("Invalid stiffness_frame")
+
+    # motion quantity errors in exponential coordinates
+    # ee body twist expressed in the reference frame is transformed to the current ee frame
     # using the Adjoint
-    B = 2 * sqrtm(K)  # critical damping assuming unit mass
-    x_e = X_e.norm().log(twist="true")  # pose error in exponential coordinates
-    v_e = X_e.Ad() @ V_d - V  # twist error
+    x_e = X_e.norm().log(twist="true") * 0  # pose error in exponential coordinates
+    v_e = Ad_e @ V_d - V  # twist error
 
     # alternate error formulation where only rotation is parametrized by 3d
     # exponential coordinates ([1], p. 420, Eq. (11.18)). This leads to
     # straight-line motions in position space.
     if 1:
         x_e[0:3] = X_e.t
-        L = np.eye(6)
-        L[3:6, 3:6] = X_e.R
-        v_e = L @ V_d - V
-
-    # Computing the external control wrench
-    f_e = B @ v_e + K @ x_e
-
-    # Jacobian derivative
-    Jdot = mjc_body_jacobian_derivative(model, data)
 
     # task-space manipulator inertia
     qM = np.zeros((9, 9))
     mujoco.mj_fullM(model, qM, data.qM)
     xM = np.linalg.pinv(J @ np.linalg.pinv(qM[0:7, 0:7]) @ J.transpose())
 
+    # compute matrix that projects an arbitrary manipulator wrench f onto the subspace of wrenches that
+    # move the end-effector tangent to the constraints ([1], p. 440, eq. (11.60))
+    P = np.eye(6) - A.T @ np.linalg.pinv(
+        (A @ np.linalg.pinv(xM) @ A.T)
+    ) @ A @ np.linalg.pinv(xM)
+
+    # print(np.round(A, decimals=2))
+    # print(np.round(P, decimals=2))
+    print(np.round(f, decimals=2))
+    # compute the control wrench, force control is feedforward only ([1], p. 441, eq. (11.61))
+    # f_u = P @ xM @ (B @ v_e + K @ x_e) + (np.eye(6) - P) @ f
+    f_u = (np.eye(6) - A) @ xM @ (B @ v_e + K @ x_e) + A @ f
+
     # Mapping the external control wrench to joint torques and compensating
     # the manipulator dynamics (gravity + coriolis / centripetal only).
-    # Here, the control wrenches are interpreted as accelerations and scaled by the
-    # configuraiton-dependent task-space inertia matrix to bring them to wrench-space
-    # (cf. [1], p. 434. Eq. (11.47)). The contribution of Jdot * dq is minor and could
-    # be omitted if computational effort is of concern
-    tau = data.qfrc_bias[0:7] + J.transpose() @ xM @ (f_e - Jdot @ data.qvel[0:7])
+    tau = data.qfrc_bias[0:7] + J.transpose() @ (f_u - xM @ Jdot @ data.qvel[0:7])
 
     # add the nullspace torques which will bias the manipulator to the desired
     # nullspace bias configuration
@@ -89,5 +110,5 @@ def hybrid_force_cimp(model, data, X_d, V_d, K):
     # map nullspace accelerations to torques
     tau_ns = qM[0:7, 0:7] @ ddq_ns
 
-    # return x_e and f_e for introspection, in addition to the control torques
-    return tau + tau_ns, x_e, f_e
+    # return x_e and f_u for introspection, in addition to the control torques
+    return tau + tau_ns, x_e, f_u

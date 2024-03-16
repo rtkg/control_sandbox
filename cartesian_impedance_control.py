@@ -8,8 +8,6 @@ from simulation.mujoco_helpers import qpos_from_site_pose
 import time
 import matplotlib
 
-matplotlib.use("tkagg")
-
 
 def simulate(model, data, duration, X_d, K):
     V_d = sm.Twist3()  # desired reference body twist is 0
@@ -72,10 +70,6 @@ def simulate(model, data, duration, X_d, K):
 
     axs[1, 0].set(xlabel="t[s]")
     axs[1, 1].set(xlabel="t[s]")
-
-    # maximize plot window
-    mng = matplotlib.pyplot.get_current_fig_manager()
-    mng.resize(*mng.window.maxsize())
 
     # Plot the end-effector path in a separate figure
     matplotlib.pyplot.figure()
