@@ -1,11 +1,10 @@
 import numpy as np
 import spatialmath as sm
 from controllers.hybrid_force_cimp import hybrid_force_cimp
-from helpers.generate_motion_profile import generate_motion_profile
+from helpers.generate_line_motion import generate_line_motion
 import mujoco
 import mujoco.viewer
 from pathlib import Path
-from simulation.mujoco_helpers import qpos_from_site_pose
 import time
 import matplotlib
 
@@ -109,9 +108,9 @@ if __name__ == "__main__":
         [[0, 0, 1, 0, 0, 0]]
     )  # force control in z-direction, A * V = 0 -> v_z = 0
 
-    A = np.zeros((6, 6))
+    # A = np.zeros((6, 6))
 
-    # A = np.eye(6)
+    A = np.eye(6)
 
     # A[0, 0] = 0
     # A[2, 2] = 1
@@ -119,11 +118,8 @@ if __name__ == "__main__":
     # control & simulation timestep
     timestep = 0.005
 
-    # trajectory duration [s]
-    traj_duration = 5.0
-
-    # number of back-and-forth trajectories
-    n_traj = 2
+    # trajectory duration
+    duration = 500.0
 
     # optionally plot various simulation variables for introspection
     plotting = True
@@ -155,33 +151,10 @@ if __name__ == "__main__":
     )
 
     # design a test reference trajectory describing a back-and-forth motion along one axis
-    X_d = []
-    V_d = []
+    # X_d, V_d = generate_line_motion(X_0, timestep, duration, 2)
 
-    for i in range(n_traj):
-        # minimum-jerk trajectory in R^3 going in positive y
-        P, dP, _, _ = generate_motion_profile(
-            np.zeros(3),
-            np.array([0, 0.2, 0]),
-            np.arange(0, traj_duration / 2.0, timestep),
-        )
-        for p, dp in zip(P, dP):
-            X_d_local = sm.SE3.Trans(p)
-            X_d.append(X_0 * X_d_local)
-            # body twist
-            V_d.append(sm.Twist3(np.array([dp[0], dp[1], dp[2], 0.0, 0.0, 0.0])))
-
-        # minimum-jerk trajectory in R^3 going in negative y
-        P, dP, _, _ = generate_motion_profile(
-            np.array([0, 0.2, 0]),
-            np.zeros(3),
-            np.arange(0, traj_duration / 2.0, timestep),
-        )
-        for p, dp in zip(P, dP):
-            X_d_local = sm.SE3.Trans(p)
-            X_d.append(X_0 * X_d_local)
-            # body twist
-            V_d.append(sm.Twist3(np.array([dp[0], dp[1], dp[2], 0.0, 0.0, 0.0])))
+    X_d = [X_0] * int(duration / timestep)
+    V_d = [sm.Twist3()] * int(duration / timestep)
 
     # run control & sim loop
     simulate(model, data, X_d, V_d, K, A, f, stiffness_frame, plotting)
