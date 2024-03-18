@@ -2,6 +2,7 @@ from scipy.linalg import sqrtm
 from simulation.mujoco_helpers import mjc_body_jacobian, mjc_body_jacobian_derivative
 import spatialmath as sm
 import numpy as np
+from copy import copy
 from helpers.damped_pinv import damped_pinv
 from helpers.ec_reparametrization import ec_reparametrization
 import mujoco
@@ -56,20 +57,24 @@ def hybrid_force_cimp(model, data, X_d, V_d, K, A, f, stiffness_frame="reference
     Ad_e = X_e.Ad()  # adjoint of the error pose
 
     if stiffness_frame == "end_effector":
-        pass  # do nothing
+        S_M = np.eye(6) - A
+        S_F = copy(A)
+        E_f = copy(f)
+        E_K = copy(K)
+        E_B = copy(B)
     elif stiffness_frame == "reference":
-        # transform K, A, and f to the end-effector frame
-        K = Ad_e @ K @ Ad_e.T  # stiffness is a 2nd order contravariant tensor
-        B = Ad_e @ B @ Ad_e.T
-        A = A @ Ad_e  # express reference body twist constraints in the spatial ee frame
-        f = Ad_e @ f  # corresponding reference wrench acting on the ee frame origin
+        S_M = Ad_e @ (np.eye(6) - A) @ np.linalg.pinv(Ad_e)
+        S_F = np.linalg.pinv(Ad_e.transpose()) @ A @ Ad_e.transpose()
+        E_f = np.linalg.pinv(Ad_e).transpose() @ f
+        E_K = Ad_e @ K @ np.linalg.pinv(Ad_e)
+        E_B = Ad_e @ B @ np.linalg.pinv(Ad_e)
     else:
         raise ValueError("Invalid stiffness_frame")
 
     # motion quantity errors in exponential coordinates
     # ee body twist expressed in the reference frame is transformed to the current ee frame
     # using the Adjoint
-    x_e = X_e.norm().log(twist="true") * 0  # pose error in exponential coordinates
+    x_e = X_e.norm().log(twist="true")  # pose error in exponential coordinates
     v_e = Ad_e @ V_d - V  # twist error
 
     # alternate error formulation where only rotation is parametrized by 3d
@@ -83,18 +88,9 @@ def hybrid_force_cimp(model, data, X_d, V_d, K, A, f, stiffness_frame="reference
     mujoco.mj_fullM(model, qM, data.qM)
     xM = np.linalg.pinv(J @ np.linalg.pinv(qM[0:7, 0:7]) @ J.transpose())
 
-    # compute matrix that projects an arbitrary manipulator wrench f onto the subspace of wrenches that
-    # move the end-effector tangent to the constraints ([1], p. 440, eq. (11.60))
-    P = np.eye(6) - A.T @ np.linalg.pinv(
-        (A @ np.linalg.pinv(xM) @ A.T)
-    ) @ A @ np.linalg.pinv(xM)
-
-    # print(np.round(A, decimals=2))
-    # print(np.round(P, decimals=2))
-    print(np.round(f, decimals=2))
     # compute the control wrench, force control is feedforward only ([1], p. 441, eq. (11.61))
     # f_u = P @ xM @ (B @ v_e + K @ x_e) + (np.eye(6) - P) @ f
-    f_u = (np.eye(6) - A) @ xM @ (B @ v_e + K @ x_e) + A @ f
+    f_u = xM @ S_M @ (E_B @ v_e + E_K @ x_e) + S_F @ E_f
 
     # Mapping the external control wrench to joint torques and compensating
     # the manipulator dynamics (gravity + coriolis / centripetal only).

@@ -3,6 +3,8 @@
 
   <visual>
     <global offwidth="1920" offheight="1080" />
+    <map force="0.5"/>
+    <scale forcewidth="0.05"/>
   </visual>
 
   <option integrator="implicit" noslip_iterations="1"/>
@@ -87,7 +89,7 @@
     <mesh file="link7_0.obj"/>
     <mesh file="link7_1.obj"/>
     <mesh file="link7_2.obj"/>
-    <mesh file="link7_3.obj"/>
+    <mesh file="link7_3.obj"/>35
     <mesh file="link7_4.obj"/>
     <mesh file="link7_5.obj"/>
     <mesh file="link7_6.obj"/>
@@ -102,7 +104,7 @@
   <worldbody>
     <light name="top" pos="0 0 2" mode="trackcom"/>
     <!-- A simple collision geometry for testing -->
-    <geom name="red_box" type="box" pos="0.5 0.0 .35" axisangle="1 0 0 0" size=".2 .5 .01" rgba="1 0 0 1"/>
+    <geom name="red_box" type="box" pos="0.5 0.0 .4" axisangle="1 0 0 0" size=".2 .5 .01" rgba="1 0 0 1" condim="1"/>
 
     <body name="panda_link0" childclass="panda">
       <inertial mass="0.629769" pos="-0.041018 -0.00014 0.049974" fullinertia="0.00315 0.00388 0.004285 8.2904e-7 0.00015 8.2299e-6"/>
@@ -197,7 +199,7 @@
                       <geom mesh="hand_3" material="white" class="visual"/>
                       <geom mesh="hand_4" material="off_white" class="visual"/>
                       <geom mesh="hand_c" class="collision"/>
-                      <geom name="finger" type="capsule" pos="0 0 0.08" axisangle="1 0 0 0" size="0.005 0.015 " rgba="0.55 0.55 0.55 1"/>
+                      <geom name="finger" type="capsule" pos="0 0 0.08" axisangle="1 0 0 0" size="0.005 0.015 " rgba="0.55 0.55 0.55 1" condim="1"/>
                       <!--geom name="finger" type="capsule" pos="0 0 0.08" axisangle="1 0 0 0" size="0.005 0.015 " rgba="0.55 0.55 0.55 1" solref="0.01 1.1"/-->
                     </body>
                   </body>

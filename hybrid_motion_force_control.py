@@ -99,33 +99,26 @@ if __name__ == "__main__":
     K = np.diag(np.hstack((np.ones(3) * k_t, np.ones(3) * k_r)))
 
     # Specify a desired contact wrench
-    f = np.array([0, 0, 1.0, 0, 0, 0])
+    f = np.array([0, 0, 10.0, 0, 0, 0])
 
     # Specify a desired Pfaffian constraint matrix A (see Lynch textbook (https://hades.mech.northwestern.edu/images/7/7f/MR.pdf), pp. 439)
     # This is a k x 6 matrix, where k is the number of end-effector twist constraints, i.e., A * V = 0. In the context of hybrid
     # force/motion control, this means that the end-effector is free to move in 6-k directions, and constrained (i.e., force-controlled) in k directions.
-    A = np.array(
-        [[0, 0, 1, 0, 0, 0]]
-    )  # force control in z-direction, A * V = 0 -> v_z = 0
 
-    # A = np.zeros((6, 6))
-
-    A = np.eye(6)
-
-    # A[0, 0] = 0
-    # A[2, 2] = 1
+    A = np.zeros((6, 6))
+    A[2, 2] = 1
 
     # control & simulation timestep
     timestep = 0.005
 
     # trajectory duration
-    duration = 500.0
+    duration = 5.0
 
     # optionally plot various simulation variables for introspection
     plotting = True
 
     # "reference" or "end_effector" - specifies in which frame K, A, and f are expressed
-    stiffness_frame = "reference"
+    stiffness_frame = "end_effector"
 
     # load a model of the Panda manipulator
     xml_path = (
@@ -150,11 +143,12 @@ if __name__ == "__main__":
         check=False,
     )
 
-    # design a test reference trajectory describing a back-and-forth motion along one axis
-    # X_d, V_d = generate_line_motion(X_0, timestep, duration, 2)
+    # a test reference trajectory consisting simply of a constant setpoint with zero desired twist
+    # X_d = [X_0] * int(duration / timestep)
+    # V_d = [sm.Twist3()] * int(duration / timestep)
 
-    X_d = [X_0] * int(duration / timestep)
-    V_d = [sm.Twist3()] * int(duration / timestep)
+    # a test reference trajectory describing a back-and-forth motion along one axis
+    X_d, V_d = generate_line_motion(X_0, timestep, duration, 20)
 
     # run control & sim loop
     simulate(model, data, X_d, V_d, K, A, f, stiffness_frame, plotting)
