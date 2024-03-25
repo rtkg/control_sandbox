@@ -20,35 +20,45 @@ def simulate(
     x = np.zeros((t_vec.size, 3))
     x_d = np.zeros((t_vec.size, 3))
     # launch MuJoCo viewer
-    with mujoco.viewer.launch_passive(model, data) as viewer:
-        # Close the viewer automatically after the simulation duration expires
-        for i, t in enumerate(t_vec):
-            step_start = time.time()
-            x[i, :] = data.site("panda_tool_center_point").xpos
-            x_d[i, :] = X_d[i].t
+    # with mujoco.viewer.launch_passive(model, data) as viewer:
+    # Close the viewer automatically after the simulation duration expires
+    for i, t in enumerate(t_vec):
+        step_start = time.time()
+        x[i, :] = data.site("panda_tool_center_point").xpos
+        x_d[i, :] = X_d[i].t
 
-            # advances simulation by all non-control dependent quantities
-            mujoco.mj_step1(model, data)
+        # advances simulation by all non-control dependent quantities
+        mujoco.mj_step1(model, data)
 
-            # evaluate the controller to get the control torques, as well as pose error
-            # and control wrenches for introspection
-            tau, x_e[i, :], f_e[i, :] = hybrid_force_cimp(
-                model, data, X_d[i], V_d[i], K, A, f, stiffness_frame
-            )
+        # evaluate the controller to get the control torques, as well as pose error
+        # and control wrenches for introspection
+        tau, x_e[i, :], f_e[i, :] = hybrid_force_cimp(
+            model, data, X_d[i], V_d[i], K, A, f, stiffness_frame
+        )
 
-            # set the MuJoCo controls according to the computed torques
-            data.ctrl[0:7] = tau
+        # set the MuJoCo controls according to the computed torques
+        data.ctrl[0:7] = tau
 
-            # advance simulation fully, including the control torques
-            mujoco.mj_step2(model, data)
+        # advance simulation fully, including the control torques
+        mujoco.mj_step2(model, data)
 
-            # update the viewer
-            viewer.sync()
+        # update the viewer
+        # viewer.sync()
 
-            # Rudimentary real-time keeping for visualization
-            time_until_next_step = model.opt.timestep - (time.time() - step_start)
-            if time_until_next_step > 0:
-                time.sleep(time_until_next_step)
+        from simulation.mujoco_helpers import (
+            mjc_world_jacobian,
+            mjc_world_jacobian_derivative,
+        )
+
+        J = mjc_world_jacobian(
+            model, data
+        )  # ee body jacobian expressed in the ee frame
+        Jdot = mjc_world_jacobian_derivative(model, data)
+
+        # Rudimentary real-time keeping for visualization
+        time_until_next_step = model.opt.timestep - (time.time() - step_start)
+        if time_until_next_step > 0:
+            time.sleep(time_until_next_step)
 
     # Plotting
     if plotting:
@@ -99,14 +109,14 @@ if __name__ == "__main__":
     K = np.diag(np.hstack((np.ones(3) * k_t, np.ones(3) * k_r)))
 
     # Specify a desired contact wrench
-    f = np.array([0, 0, 10.0, 0, 0, 0])
+    f = np.array([0, 0, 0.0, 0, 0, 0])
 
     # Specify a desired Pfaffian constraint matrix A (see Lynch textbook (https://hades.mech.northwestern.edu/images/7/7f/MR.pdf), pp. 439)
     # This is a k x 6 matrix, where k is the number of end-effector twist constraints, i.e., A * V = 0. In the context of hybrid
     # force/motion control, this means that the end-effector is free to move in 6-k directions, and constrained (i.e., force-controlled) in k directions.
 
     A = np.zeros((6, 6))
-    A[2, 2] = 1
+    # A[2, 2] = 1
 
     # control & simulation timestep
     timestep = 0.005
@@ -134,7 +144,7 @@ if __name__ == "__main__":
     model.opt.timestep = timestep
 
     # compute forward dynamcis to update kinematic quantities
-    mujoco.mj_forward(model, data)
+    mujoco.mj_fwdPosition(model, data)
 
     # current ee pose- xM @ Jdot @ data.qvel[0:7]
     X_0 = sm.SE3.Rt(
@@ -146,9 +156,10 @@ if __name__ == "__main__":
     # a test reference trajectory consisting simply of a constant setpoint with zero desired twist
     # X_d = [X_0] * int(duration / timestep)
     # V_d = [sm.Twist3()] * int(duration / timestep)
+    # dV_d = [sm.Twist3()] * int(duration / timestep)
 
     # a test reference trajectory describing a back-and-forth motion along one axis
-    X_d, V_d = generate_line_motion(X_0, timestep, duration, 20)
+    X_d, V_d = generate_line_motion(X_0, timestep, duration, 1)
 
     # run control & sim loop
     simulate(model, data, X_d, V_d, K, A, f, stiffness_frame, plotting)

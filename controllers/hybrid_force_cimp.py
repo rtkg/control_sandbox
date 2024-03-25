@@ -27,7 +27,7 @@ def hybrid_force_cimp(model, data, X_d, V_d, K, A, f, stiffness_frame="reference
                                      K, A, and f are expressed
 
     Returns:
-        tau (np.ndarray) ... joint control torques
+        tau (np.ndarray) ... joint control torquesmjc_world_jacobian_derivative
         x_e (np.ndarray) ... pose error
         f_u  (np.ndarray) ... generated cartesian control force
 
@@ -45,6 +45,7 @@ def hybrid_force_cimp(model, data, X_d, V_d, K, A, f, stiffness_frame="reference
     X = sm.SE3.Rt(sm.base.smb.q2r(quat), data.site("panda_tool_center_point").xpos)
 
     J = mjc_body_jacobian(model, data)  # ee body jacobian expressed in the ee frame
+
     Jdot = mjc_body_jacobian_derivative(model, data)  # Jacobian derivative
     V = J @ dq  # current ee body twist
 
@@ -86,15 +87,15 @@ def hybrid_force_cimp(model, data, X_d, V_d, K, A, f, stiffness_frame="reference
     # task-space manipulator inertia
     qM = np.zeros((7, 7))
     mujoco.mj_fullM(model, qM, data.qM)
-    xM = np.linalg.pinv(J @ np.linalg.pinv(qM[0:7, 0:7]) @ J.transpose())
+    xM = np.linalg.inv(J @ np.linalg.inv(qM[0:7, 0:7]) @ J.transpose())
 
     # compute the control wrench, force control is feedforward only ([1], p. 441, eq. (11.61))
-    # f_u = P @ xM @ (B @ v_e + K @ x_e) + (np.eye(6) - P) @ f
-    f_u = xM @ S_M @ (E_B @ v_e + E_K @ x_e) + S_F @ E_f
+    # f_u = P @ xM @ (B @ v_e + K @ x_e) + S_F @ E_f
+    f_u = xM @ (B @ v_e + K @ x_e)
 
     # Mapping the external control wrench to joint torques and compensating
     # the manipulator dynamics (gravity + coriolis / centripetal only).
-    tau = data.qfrc_bias[0:7] + J.transpose() @ (f_u - xM @ Jdot @ data.qvel[0:7])
+    tau = data.qfrc_bias[0:7] + J.transpose() @ (f_u - xM @ Jdot @ dq)
 
     # add the nullspace torques which will bias the manipulator to the desired
     # nullspace bias configuration
@@ -107,4 +108,4 @@ def hybrid_force_cimp(model, data, X_d, V_d, K, A, f, stiffness_frame="reference
     tau_ns = qM[0:7, 0:7] @ ddq_ns
 
     # return x_e and f_u for introspection, in addition to the control torques
-    return tau + tau_ns, x_e, f_u
+    return tau + tau_ns * 0, x_e, f_u
