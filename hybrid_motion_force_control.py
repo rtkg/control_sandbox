@@ -10,7 +10,7 @@ import matplotlib
 
 
 def simulate(
-    model, data, X_d, V_d, K, A, f, stiffness_frame="reference", plotting=True
+    model, data, X_d, V_d, dV_d, K, A, f, stiffness_frame="reference", plotting=True
 ):
     duration = model.opt.timestep * len(X_d)
 
@@ -20,45 +20,35 @@ def simulate(
     x = np.zeros((t_vec.size, 3))
     x_d = np.zeros((t_vec.size, 3))
     # launch MuJoCo viewer
-    # with mujoco.viewer.launch_passive(model, data) as viewer:
-    # Close the viewer automatically after the simulation duration expires
-    for i, t in enumerate(t_vec):
-        step_start = time.time()
-        x[i, :] = data.site("panda_tool_center_point").xpos
-        x_d[i, :] = X_d[i].t
+    with mujoco.viewer.launch_passive(model, data) as viewer:
+        # Close the viewer automatically after the simulation duration expires
+        for i, t in enumerate(t_vec):
+            step_start = time.time()
+            x[i, :] = data.site("panda_tool_center_point").xpos
+            x_d[i, :] = X_d[i].t
 
-        # advances simulation by all non-control dependent quantities
-        mujoco.mj_step1(model, data)
+            # advances simulation by all non-control dependent quantities
+            mujoco.mj_step1(model, data)
 
-        # evaluate the controller to get the control torques, as well as pose error
-        # and control wrenches for introspection
-        tau, x_e[i, :], f_e[i, :] = hybrid_force_cimp(
-            model, data, X_d[i], V_d[i], K, A, f, stiffness_frame
-        )
+            # evaluate the controller to get the control torques, as well as pose error
+            # and control wrenches for introspection
+            tau, x_e[i, :], f_e[i, :] = hybrid_force_cimp(
+                model, data, X_d[i], V_d[i], dV_d[i], K, A, f, stiffness_frame
+            )
 
-        # set the MuJoCo controls according to the computed torques
-        data.ctrl[0:7] = tau
+            # set the MuJoCo controls according to the computed torques
+            data.ctrl[0:7] = tau
 
-        # advance simulation fully, including the control torques
-        mujoco.mj_step2(model, data)
+            # advance simulation fully, including the control torques
+            mujoco.mj_step2(model, data)
 
-        # update the viewer
-        # viewer.sync()
+            # update the viewer
+            viewer.sync()
 
-        from simulation.mujoco_helpers import (
-            mjc_world_jacobian,
-            mjc_world_jacobian_derivative,
-        )
-
-        J = mjc_world_jacobian(
-            model, data
-        )  # ee body jacobian expressed in the ee frame
-        Jdot = mjc_world_jacobian_derivative(model, data)
-
-        # Rudimentary real-time keeping for visualization
-        time_until_next_step = model.opt.timestep - (time.time() - step_start)
-        if time_until_next_step > 0:
-            time.sleep(time_until_next_step)
+            # Rudimentary real-time keeping for visualization
+            time_until_next_step = model.opt.timestep - (time.time() - step_start)
+            if time_until_next_step > 0:
+                time.sleep(time_until_next_step)
 
     # Plotting
     if plotting:
@@ -104,8 +94,8 @@ if __name__ == "__main__":
 
     # Specify a desired diagonal stiffness matrix with translational (k_t) and
     # rotational (k_r) elements
-    k_t = 500.0
-    k_r = 50.0
+    k_t = 500.0 * 0
+    k_r = 50.0 * 0
     K = np.diag(np.hstack((np.ones(3) * k_t, np.ones(3) * k_r)))
 
     # Specify a desired contact wrench
@@ -159,7 +149,7 @@ if __name__ == "__main__":
     # dV_d = [sm.Twist3()] * int(duration / timestep)
 
     # a test reference trajectory describing a back-and-forth motion along one axis
-    X_d, V_d = generate_line_motion(X_0, timestep, duration, 1)
+    X_d, V_d, dV_d = generate_line_motion(X_0, timestep, duration, 1)
 
     # run control & sim loop
-    simulate(model, data, X_d, V_d, K, A, f, stiffness_frame, plotting)
+    simulate(model, data, X_d, V_d, dV_d, K, A, f, stiffness_frame, plotting)

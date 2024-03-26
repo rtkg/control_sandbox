@@ -8,7 +8,9 @@ from helpers.ec_reparametrization import ec_reparametrization
 import mujoco
 
 
-def hybrid_force_cimp(model, data, X_d, V_d, K, A, f, stiffness_frame="reference"):
+def hybrid_force_cimp(
+    model, data, X_d, V_d, dV_d, K, A, f, stiffness_frame="reference"
+):
     """
     Hybrid force Impedance Controller formulated according to the algorithm in [1],
     p. 441, Eq. (11.61) without full arm dynamcis compensation (only gravitational load
@@ -19,6 +21,8 @@ def hybrid_force_cimp(model, data, X_d, V_d, K, A, f, stiffness_frame="reference
     Args:
         X_d (SE3) ... Desired end-effector pose expressed in the base frame
         V_d (Twist3) .. Desired end-effector body twist expressed in the end-effector
+                        frame
+        dV_d (Twist3) .. Desired end-effector body acceleration expressed in the end-effector
                         frame
         K (np.ndarray(6 , 6)) ... Desired stiffness
         A (np.ndarray(k, 6)) ... Pfaffian constraint matrix such that A * V = 0
@@ -57,26 +61,33 @@ def hybrid_force_cimp(model, data, X_d, V_d, K, A, f, stiffness_frame="reference
     X_e = X.inv() * X_d  # error pose (i.e., the ref frame expressed in the  ee frame)
     Ad_e = X_e.Ad()  # adjoint of the error pose
 
-    if stiffness_frame == "end_effector":
-        S_M = np.eye(6) - A
-        S_F = copy(A)
-        E_f = copy(f)
-        E_K = copy(K)
-        E_B = copy(B)
-    elif stiffness_frame == "reference":
-        S_M = Ad_e @ (np.eye(6) - A) @ np.linalg.pinv(Ad_e)
-        S_F = np.linalg.pinv(Ad_e.transpose()) @ A @ Ad_e.transpose()
-        E_f = np.linalg.pinv(Ad_e).transpose() @ f
-        E_K = Ad_e @ K @ np.linalg.pinv(Ad_e)
-        E_B = Ad_e @ B @ np.linalg.pinv(Ad_e)
-    else:
-        raise ValueError("Invalid stiffness_frame")
+    # if stiffness_frame == "end_effector":
+    #     S_M = np.eye(6) - A
+    #     S_F = copy(A)
+    #     E_f = copy(f)
+    #     E_K = copy(K)
+    #     E_B = copy(B)
+    # elif stiffness_frame == "reference":
+    #     S_M = Ad_e @ (np.eye(6) - A) @ np.linalg.pinv(Ad_e)
+    #     S_F = np.linalg.pinv(Ad_e.transpose()) @ A @ Ad_e.transpose()
+    #     E_f = np.linalg.pinv(Ad_e).transpose() @ f
+    #     E_K = Ad_e @ K @ np.linalg.pinv(Ad_e)
+    #     E_B = Ad_e @ B @ np.linalg.pinv(Ad_e)
+    # else:
+    #     raise ValueError("Invalid stiffness_frame")
 
     # motion quantity errors in exponential coordinates
     # ee body twist expressed in the reference frame is transformed to the current ee frame
     # using the Adjoint
     x_e = X_e.norm().log(twist="true")  # pose error in exponential coordinates
     v_e = Ad_e @ V_d - V  # twist error
+    # cross product representation of the twist error, i.e., the "small adjoint"
+    ad_e = np.zeros((6, 6))
+    ad_e[0:3, 0:3] = sm.base.smb.skew(v_e[3:6])
+    ad_e[0:3, 3:6] = sm.base.smb.skew(v_e[0:3])
+    ad_e[3:6, 3:6] = sm.base.smb.skew(v_e[3:6])
+
+    a_ff = Ad_e @ dV_d + ad_e @ V_d  # feedforward acceleration
 
     # alternate error formulation where only rotation is parametrized by 3d
     # exponential coordinates ([1], p. 420, Eq. (11.18)). This leads to
@@ -91,7 +102,7 @@ def hybrid_force_cimp(model, data, X_d, V_d, K, A, f, stiffness_frame="reference
 
     # compute the control wrench, force control is feedforward only ([1], p. 441, eq. (11.61))
     # f_u = P @ xM @ (B @ v_e + K @ x_e) + S_F @ E_f
-    f_u = xM @ (B @ v_e + K @ x_e)
+    f_u = xM @ (B @ v_e + K @ x_e + a_ff)
 
     # Mapping the external control wrench to joint torques and compensating
     # the manipulator dynamics (gravity + coriolis / centripetal only).
@@ -108,4 +119,4 @@ def hybrid_force_cimp(model, data, X_d, V_d, K, A, f, stiffness_frame="reference
     tau_ns = qM[0:7, 0:7] @ ddq_ns
 
     # return x_e and f_u for introspection, in addition to the control torques
-    return tau + tau_ns * 0, x_e, f_u
+    return tau + tau_ns, x_e, f_u
