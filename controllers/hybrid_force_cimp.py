@@ -100,9 +100,13 @@ def hybrid_force_cimp(
     mujoco.mj_fullM(model, qM, data.qM)
     xM = np.linalg.inv(J @ np.linalg.inv(qM[0:7, 0:7]) @ J.transpose())
 
+    P = np.eye(6) - A.T @ np.linalg.inv(
+        A @ np.linalg.inv(xM) @ A.T
+    ) @ A @ np.linalg.inv(xM)
+
     # compute the control wrench, force control is feedforward only ([1], p. 441, eq. (11.61))
     # f_u = P @ xM @ (B @ v_e + K @ x_e) + S_F @ E_f
-    f_u = xM @ (B @ v_e + K @ x_e + a_ff)
+    f_u = P @ xM @ (B @ v_e + K @ x_e + a_ff) + (np.eye(6) - P) @ f
 
     # Mapping the external control wrench to joint torques and compensating
     # the manipulator dynamics (gravity + coriolis / centripetal only).
