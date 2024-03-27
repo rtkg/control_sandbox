@@ -106,7 +106,7 @@ if __name__ == "__main__":
     # force/motion control, this means that the end-effector is free to move in 6-k directions, and constrained (i.e., force-controlled) in k directions.
 
     A = np.zeros((6, 6))
-    # A[2, 2] = 1
+    A[2, 2] = 1
 
     # control & simulation timestep
     timestep = 0.005
