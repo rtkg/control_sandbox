@@ -1,7 +1,7 @@
 import mujoco
 import numpy as np
 import collections
-from copy import deepcopy
+from copy import deepcopy, copy
 import logging
 
 
@@ -74,15 +74,15 @@ def mjc_body_jacobian_derivative(model, data):
     """
 
     h = 1e-10
-    qpos = deepcopy(data.qpos)
     J = mjc_body_jacobian(model, data)
-    mujoco.mj_integratePos(model, data.qpos, data.qvel, h)
-    mujoco.mj_fwdPosition(model, data)
-    Jh = mjc_body_jacobian(model, data)
+
+    datah = copy(data)
+
+    mujoco.mj_integratePos(model, datah.qpos, datah.qvel, h)
+    mujoco.mj_fwdPosition(model, datah)
+    Jh = mjc_body_jacobian(model, datah)
     Jdot = (Jh - J) / h
 
-    # qpos needs to be reset in the data struct
-    data.qpos = qpos
     return Jdot
 
 
@@ -103,15 +103,14 @@ def mjc_world_jacobian_derivative(model, data):
     """
 
     h = 1e-10
-    qpos = deepcopy(data.qpos)
     J = mjc_world_jacobian(model, data)
-    mujoco.mj_integratePos(model, data.qpos, data.qvel, h)
-    mujoco.mj_fwdPosition(model, data)
-    Jh = mjc_world_jacobian(model, data)
+
+    datah = copy(data)
+    mujoco.mj_integratePos(model, datah.qpos, datah.qvel, h)
+    mujoco.mj_fwdPosition(model, datah)
+    Jh = mjc_world_jacobian(model, datah)
     Jdot = (Jh - J) / h
 
-    # qpos needs to be reset in the data struct
-    data.qpos = qpos
     return Jdot
 
 
