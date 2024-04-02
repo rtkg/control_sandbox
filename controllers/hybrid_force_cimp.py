@@ -1,5 +1,10 @@
 from scipy.linalg import sqrtm
-from simulation.mujoco_helpers import mjc_body_jacobian, mjc_body_jacobian_derivative
+from simulation.mujoco_helpers import (
+    mjc_body_jacobian,
+    mjc_body_jacobian_derivative,
+    mjc_world_jacobian,
+    mjc_world_jacobian_derivative,
+)
 import spatialmath as sm
 import numpy as np
 from copy import copy
@@ -9,7 +14,7 @@ import mujoco
 
 
 def hybrid_force_cimp(
-    model, data, X_d, V_d, dV_d, K, A, f, stiffness_frame="reference"
+    t, model, data, X_d, V_d, dV_d, K, A, f, stiffness_frame="reference"
 ):
     """
     Hybrid force Impedance Controller formulated according to the algorithm in [1],
@@ -49,8 +54,9 @@ def hybrid_force_cimp(
     X = sm.SE3.Rt(sm.base.smb.q2r(quat), data.site("panda_tool_center_point").xpos)
 
     J = mjc_body_jacobian(model, data)  # ee body jacobian expressed in the ee frame
-
     Jdot = mjc_body_jacobian_derivative(model, data)  # Jacobian derivative
+    W_J = mjc_world_jacobian(model, data)  # ee body jacobian expressed in the ee frame
+    W_Jdot = mjc_world_jacobian_derivative(model, data)  # Jacobian derivative
     V = J @ dq  # current ee body twist
 
     # =============== Cartesian wrench-resolved control law ==================
@@ -60,6 +66,13 @@ def hybrid_force_cimp(
     B = 2 * sqrtm(K)  # critical damping approximation assuming unit mass
     X_e = X.inv() * X_d  # error pose (i.e., the ref frame expressed in the  ee frame)
     Ad_e = X_e.Ad()  # adjoint of the error pose
+
+    R_we = np.zeros((6, 6))
+    R_we[0:3, 0:3] = X.R
+    R_we[3:6, 3:6] = X.R
+
+    W_K = R_we @ K @ np.linalg.inv(R_we)
+    W_ = R_we @ B @ np.linalg.inv(R_we)
 
     # if stiffness_frame == "end_effector":
     #     S_M = np.eye(6) - A
@@ -99,18 +112,27 @@ def hybrid_force_cimp(
     qM = np.zeros((7, 7))
     mujoco.mj_fullM(model, qM, data.qM)
     xM = np.linalg.inv(J @ np.linalg.inv(qM[0:7, 0:7]) @ J.transpose())
+    W_xM = np.linalg.inv(W_J @ np.linalg.inv(qM[0:7, 0:7]) @ W_J.transpose())
 
     P = np.eye(6) - A.T @ np.linalg.inv(
         A @ np.linalg.inv(xM) @ A.T
     ) @ A @ np.linalg.inv(xM)
 
+    W_P = np.eye(6) - A.T @ np.linalg.inv(A @ A.T) @ A
+
     # compute the control wrench, force control is feedforward only ([1], p. 441, eq. (11.61))
     # f_u = P @ xM @ (B @ v_e + K @ x_e) + S_F @ E_f
-    f_u = P @ xM @ (B @ v_e + K @ x_e + a_ff) + (np.eye(6) - P) @ f
+    # f_u = P @ xM @ (B @ v_e + K @ x_e + a_ff) + (np.eye(6) - P) @ f
+    a_u = B @ v_e + K @ x_e + a_ff
+    f_u = xM @ a_u
+
+    W_a_u = R_we @ a_u
+    W_f_u = W_xM @ W_P @ W_a_u + (np.eye(6) - W_P) @ f
 
     # Mapping the external control wrench to joint torques and compensating
     # the manipulator dynamics (gravity + coriolis / centripetal only).
-    tau = data.qfrc_bias[0:7] + J.transpose() @ (f_u - xM @ Jdot @ dq)
+    # tau = data.qfrc_bias[0:7] + J.transpose() @ (f_u - xM @ Jdot @ dq)
+    tau = data.qfrc_bias[0:7] + W_J.transpose() @ (W_f_u - W_xM @ W_Jdot @ dq)
 
     # add the nullspace torques which will bias the manipulator to the desired
     # nullspace bias configuration
@@ -123,4 +145,4 @@ def hybrid_force_cimp(
     tau_ns = qM[0:7, 0:7] @ ddq_ns
 
     # return x_e and f_u for introspection, in addition to the control torques
-    return tau + tau_ns, x_e, f_u
+    return tau + tau_ns, R_we @ x_e, W_f_u

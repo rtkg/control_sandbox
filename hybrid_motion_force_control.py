@@ -33,7 +33,7 @@ def simulate(
             # evaluate the controller to get the control torques, as well as pose error
             # and control wrenches for introspection
             tau, x_e[i, :], f_e[i, :] = hybrid_force_cimp(
-                model, data, X_d[i], V_d[i], dV_d[i], K, A, f, stiffness_frame
+                t, model, data, X_d[i], V_d[i], dV_d[i], K, A, f, stiffness_frame
             )
 
             # set the MuJoCo controls according to the computed torques
@@ -99,13 +99,13 @@ if __name__ == "__main__":
     K = np.diag(np.hstack((np.ones(3) * k_t, np.ones(3) * k_r)))
 
     # Specify a desired contact wrench
-    f = np.array([0, 0, 10.0, 0, 0, 0])
+    f = np.array([0, 0, -1.0, 0, 0, 0])
 
     # Specify a desired Pfaffian constraint matrix A (see Lynch textbook (https://hades.mech.northwestern.edu/images/7/7f/MR.pdf), pp. 439)
     # This is a k x 6 matrix, where k is the number of end-effector twist constraints, i.e., A * V = 0. In the context of hybrid
     # force/motion control, this means that the end-effector is free to move in 6-k directions, and constrained (i.e., force-controlled) in k directions.
 
-    A = np.array([[0, 0, 1, 0, 0, 0]])
+    A = np.array([[0, 0, 5, 0, 0, 0]])
 
     # control & simulation timestep
     timestep = 0.005
