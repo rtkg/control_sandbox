@@ -199,7 +199,7 @@
                       <geom mesh="hand_3" material="white" class="visual"/>
                       <geom mesh="hand_4" material="off_white" class="visual"/>
                       <geom mesh="hand_c" class="collision"/>
-                      <geom name="finger" type="capsule" pos="0 0 0.08" axisangle="1 0 0 0" size="0.005 0.015 " rgba="0.55 0.55 0.55 1" condim="1"/>
+                      <geom name="grinder" type="cylinder" pos="0 0 0.085" axisangle="1 0 0 0" size="0.05 0.015 " rgba="0.55 0.55 0.55 1" condim="1"/>
                       <!--geom name="finger" type="capsule" pos="0 0 0.08" axisangle="1 0 0 0" size="0.005 0.015 " rgba="0.55 0.55 0.55 1" solref="0.01 1.1"/-->
                     </body>
                   </body>
