@@ -4,12 +4,11 @@ import spatialmath as sm
 import numpy as np
 from copy import copy
 from helpers.damped_pinv import damped_pinv
-from helpers.ec_reparametrization import ec_reparametrization
 import mujoco
 
 
 def hybrid_force_cimp(
-    model, data, X_d, V_d, dV_d, K, A, f, stiffness_frame="reference"
+    model, data, t, X_d, V_d, dV_d, K, A, f, stiffness_frame="reference"
 ):
     """
     Hybrid force Impedance Controller formulated according to the algorithm in [1],
@@ -27,7 +26,7 @@ def hybrid_force_cimp(
         K (np.ndarray(6 , 6)) ... Desired stiffness
         A (np.ndarray(k, 6)) ... Pfaffian constraint matrix such that A * V = 0
         f (np.ndarray(6)) ... Arbitrary desired contact wrench
-        stiffness_frame (string) ... "reference" or "end_effector" - specifies in which frame
+        stiffness_frame (string) ... "world", "reference" or "end_effector" - specifies in which frame
                                      K, A, and f are expressed
 
     Returns:
@@ -49,7 +48,6 @@ def hybrid_force_cimp(
     X = sm.SE3.Rt(sm.base.smb.q2r(quat), data.site("panda_tool_center_point").xpos)
 
     J = mjc_body_jacobian(model, data)  # ee body jacobian expressed in the ee frame
-
     Jdot = mjc_body_jacobian_derivative(model, data)  # Jacobian derivative
     V = J @ dq  # current ee body twist
 
@@ -61,20 +59,32 @@ def hybrid_force_cimp(
     X_e = X.inv() * X_d  # error pose (i.e., the ref frame expressed in the  ee frame)
     Ad_e = X_e.Ad()  # adjoint of the error pose
 
-    # if stiffness_frame == "end_effector":
-    #     S_M = np.eye(6) - A
-    #     S_F = copy(A)
-    #     E_f = copy(f)
-    #     E_K = copy(K)
-    #     E_B = copy(B)
-    # elif stiffness_frame == "reference":
-    #     S_M = Ad_e @ (np.eye(6) - A) @ np.linalg.pinv(Ad_e)
-    #     S_F = np.linalg.pinv(Ad_e.transpose()) @ A @ Ad_e.transpose()
-    #     E_f = np.linalg.pinv(Ad_e).transpose() @ f
-    #     E_K = Ad_e @ K @ np.linalg.pinv(Ad_e)
-    #     E_B = Ad_e @ B @ np.linalg.pinv(Ad_e)
-    # else:
-    #     raise ValueError("Invalid stiffness_frame")
+    # Projection matrix used to separate motion- and force controlled directions
+    P = np.eye(6) - A.T @ np.linalg.inv(A @ A.T) @ A
+
+    if stiffness_frame == "end_effector":
+        # nothing needs to be done, the control law is formulated w.r.t. the end-effector anyhow
+        E_K = copy(K)
+        E_B = copy(B)
+        E_f = copy(f)
+        E_P = copy(P)
+    elif stiffness_frame == "world":
+        # express the stiffness, damping, and force in the end-effector frame
+        R_ew = np.zeros((6, 6))
+        R_ew[0:3, 0:3] = X.R.T
+        R_ew[3:6, 3:6] = X.R.T
+
+        E_K = R_ew @ K @ R_ew.T
+        E_B = R_ew @ B @ R_ew.T
+        E_f = R_ew @ f
+        E_P = R_ew @ P @ R_ew.T
+    elif stiffness_frame == "reference":
+        E_K = Ad_e @ K @ np.linalg.pinv(Ad_e)
+        E_B = Ad_e @ B @ np.linalg.pinv(Ad_e)
+        E_f = Ad_e @ f
+        E_P = Ad_e @ P @ np.linalg.pinv(Ad_e)
+    else:
+        raise ValueError("Invalid stiffness_frame")
 
     # motion quantity errors in exponential coordinates
     # ee body twist expressed in the reference frame is transformed to the current ee frame
@@ -105,11 +115,12 @@ def hybrid_force_cimp(
     ) @ A @ np.linalg.inv(xM)
 
     # compute the control wrench, force control is feedforward only ([1], p. 441, eq. (11.61))
-    # f_u = P @ xM @ (B @ v_e + K @ x_e) + S_F @ E_f
-    f_u = xM @ (B @ v_e + K @ x_e + a_ff)
+    a_u = E_B @ v_e + E_K @ x_e + a_ff
+    f_u = xM @ E_P @ a_u + (np.eye(6) - E_P) @ E_f
 
     # Mapping the external control wrench to joint torques and compensating
     # the manipulator dynamics (gravity + coriolis / centripetal only).
+
     tau = data.qfrc_bias[0:7] + J.transpose() @ (f_u - xM @ Jdot @ dq)
 
     # add the nullspace torques which will bias the manipulator to the desired
