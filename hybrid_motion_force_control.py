@@ -33,7 +33,7 @@ def simulate(
             # evaluate the controller to get the control torques, as well as pose error
             # and control wrenches for introspection
             tau, x_e[i, :], f_e[i, :] = hybrid_force_cimp(
-                model, data, t, X_d[i], V_d[i], dV_d[i], K, A, f, stiffness_frame
+                model, data, X_d[i], V_d[i], dV_d[i], K, A, f, stiffness_frame
             )
 
             # set the MuJoCo controls according to the computed torques
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     plotting = True
 
     # "world", "reference" or "end_effector" - specifies in which frame K, A, and f are expressed
-    stiffness_frame = "reference"
+    stiffness_frame = "end_effector"
 
     # load a model of the Panda manipulator
     xml_path = (

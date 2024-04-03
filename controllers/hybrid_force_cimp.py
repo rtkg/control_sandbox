@@ -8,7 +8,7 @@ import mujoco
 
 
 def hybrid_force_cimp(
-    model, data, t, X_d, V_d, dV_d, K, A, f, stiffness_frame="reference"
+    model, data, X_d, V_d, dV_d, K, A, f, stiffness_frame="reference"
 ):
     """
     Hybrid force Impedance Controller formulated according to the algorithm in [1],
@@ -97,7 +97,7 @@ def hybrid_force_cimp(
     ad_e[0:3, 3:6] = sm.base.smb.skew(v_e[0:3])
     ad_e[3:6, 3:6] = sm.base.smb.skew(v_e[3:6])
 
-    a_ff = Ad_e @ dV_d + ad_e @ V_d  # feedforward acceleration
+    a_ff = Ad_e @ dV_d + ad_e @ V_d  # feedforward acceleration in the ee-frame
 
     # alternate error formulation where only rotation is parametrized by 3d
     # exponential coordinates ([1], p. 420, Eq. (11.18)). This leads to
@@ -110,13 +110,13 @@ def hybrid_force_cimp(
     mujoco.mj_fullM(model, qM, data.qM)
     xM = np.linalg.inv(J @ np.linalg.inv(qM[0:7, 0:7]) @ J.transpose())
 
-    # compute the control wrench, force control is feedforward only ([1], p. 441, eq. (11.61))
+    # compute the control acceleration and wrench and project them onto their respective independent subspaces
+    # force control is feedforward only ([1], p. 441, eq. (11.61))
     a_u = E_B @ v_e + E_K @ x_e + a_ff
     f_u = xM @ E_P @ a_u + (np.eye(6) - E_P) @ E_f
 
     # Mapping the external control wrench to joint torques and compensating
     # the manipulator dynamics (gravity + coriolis / centripetal only).
-
     tau = data.qfrc_bias[0:7] + J.transpose() @ (f_u - xM @ Jdot @ dq)
 
     # add the nullspace torques which will bias the manipulator to the desired
