@@ -110,10 +110,6 @@ def hybrid_force_cimp(
     mujoco.mj_fullM(model, qM, data.qM)
     xM = np.linalg.inv(J @ np.linalg.inv(qM[0:7, 0:7]) @ J.transpose())
 
-    P = np.eye(6) - A.T @ np.linalg.inv(
-        A @ np.linalg.inv(xM) @ A.T
-    ) @ A @ np.linalg.inv(xM)
-
     # compute the control wrench, force control is feedforward only ([1], p. 441, eq. (11.61))
     a_u = E_B @ v_e + E_K @ x_e + a_ff
     f_u = xM @ E_P @ a_u + (np.eye(6) - E_P) @ E_f
