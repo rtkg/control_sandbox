@@ -5,11 +5,10 @@ from copy import deepcopy
 import logging
 
 
-def mjc_body_jacobian(model, data):
+def mjc_body_jacobian(model, data, tcp_site_id):
     """
     Compute the body jacobian which relates joint velocities to the body twist (i.e.,
     the end-effector linear, angular velocity expressed in the end-effector frame).
-    Currently, this method is hardcoded for the model of the Franka Emika Panda robot.
     It is assumed, that the kinematic quantities in 'data' are up-to date, i.e., that
     at least mj_forward(.) was called prior to this function.
 
@@ -24,20 +23,19 @@ def mjc_body_jacobian(model, data):
     jacr = np.zeros((3, model.nv), dtype=np.float64)
 
     # compute position/rotation parts of the jacobian
-    mujoco.mj_jacSite(model, data, jacp, jacr, model.site("panda_tool_center_point").id)
+    mujoco.mj_jacSite(model, data, jacp, jacr, model.site(tcp_site_id).id)
 
     # MuJoCo returns the body jacobian expressed in the world frame, this needs to be
     # rotated to the end-effector frame
-    R_ew = data.site("panda_tool_center_point").xmat.reshape(3, 3).transpose()
+    R_ew = data.site(tcp_site_id).xmat.reshape(3, 3).transpose()
 
     return np.vstack((R_ew @ jacp[:, 0:7], R_ew @ jacr[:, 0:7]))
 
 
-def mjc_body_jacobian_derivative(model, data):
+def mjc_body_jacobian_derivative(model, data, tcp_site_id):
     '''
     Computes the body jacobian derivative via forward simulation by a small timestep
     and numerical differentiation as suggested here: https://github.com/google-deepmind/mujoco/issues/411.
-    Currently, this method is hardcoded for the model of the Franka Emika Panda robot.
     It is assumed, that the kinematic quantities in 'data' are up-to date, i.e., that
     at least mj_forward(.) was called prior to this function.
 
@@ -51,10 +49,10 @@ def mjc_body_jacobian_derivative(model, data):
 
     h = 1e-10
     qpos = deepcopy(data.qpos)
-    J = mjc_body_jacobian(model, data)
+    J = mjc_body_jacobian(model, data, tcp_site_id)
     mujoco.mj_integratePos(model, data.qpos, data.qvel, h)
     mujoco.mj_forward(model, data)
-    Jh = mjc_body_jacobian(model, data)
+    Jh = mjc_body_jacobian(model, data, tcp_site_id)
     Jdot = (Jh - J) / h
 
     # qpos needs to be reset in the data struct

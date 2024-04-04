@@ -16,10 +16,13 @@ def simulate(model, data, duration, X_d, K, B, f_c, plotting):
     t = 0.0
     V_d = sm.Twist3()  # desired reference body twist is 0
 
+    nullspace_conf = model.key('nullspace_config').qpos
+    
     t_vec = np.arange(0, duration, model.opt.timestep)
     x_e = np.zeros((t_vec.size, 6))
     f_e = np.zeros((t_vec.size, 6))
-    x = np.zeros((t_vec.size, 3))
+    x = np.zeros((t_vec.size, 3))    
+    nrcounter = 0
     # launch MuJoCo viewer
     with mujoco.viewer.launch_passive(model, data) as viewer:
         # Close the viewer automatically after the simulation duration expires
@@ -32,7 +35,7 @@ def simulate(model, data, duration, X_d, K, B, f_c, plotting):
 
             # evaluate the controller to get the control torques, as well as pose error
             # and control wrenches for introspection
-            tau, x_e[i, :], f_e[i, :] = cimp_simple(model, data, X_d, V_d, K, B, f_c)
+            tau, x_e[i, :], f_e[i, :] = cimp_simple(model, data, X_d, V_d, K, B, f_c, n_conf=nullspace_conf, tcp_site_id="panda_tool_center_point")
 
             # set the MuJoCo controls according to the computed torques
             data.ctrl[0:7] = tau
@@ -52,7 +55,7 @@ def simulate(model, data, duration, X_d, K, B, f_c, plotting):
             if time_until_next_step > 0:
                 time.sleep(time_until_next_step)
 
-    # Plotting
+    # Plotting (please note matplotlib doesn't work on mjpython when run on the OSX)
     if (plotting):
         _, axs = matplotlib.pyplot.subplots(2, 2)
         axs[0, 0].plot(t_vec, x_e[:, 0:3], label=["e_t_x", "e_t_y", "e_t_z"])
@@ -105,11 +108,11 @@ if __name__ == "__main__":
     # K = np.diag(np.hstack((np.ones(3) * k_t, np.ones(3) * k_r)))
     # Martin's test case
     #K = np.diag(np.hstack((np.ones(3) * k_t, np.array([10.0, 10.0, 10.0]))))
-    K = np.diag(np.hstack((np.array([5000.0, 5000.0, 0.0]), np.array([0.0, 20.0, 20.0]))))
+    K = np.diag(np.hstack((np.array([0.0, 10.0, 10.0]), np.array([1.0, 1.0, 1.0]))))
 
     # Damping matrix entry
     B = 2 * sqrtm(K)  # critical damping assuming unit mass
-    print(B)
+    # print(B)
     if 1:
         B[0, 0] = 10.0
         B[1, 1] = 10.0
@@ -119,7 +122,7 @@ if __name__ == "__main__":
         B[5, 5] = 6.32455532 
 
     # Target compliance (if user wants robot to generate force/torque along given axes)
-    f_c = np.array([0.0, 0.0, 0.5, 0.0, 0.0, 0.0])
+    f_c = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
     # control & simulation timestep
     timestep = 0.005
@@ -143,7 +146,8 @@ if __name__ == "__main__":
     mujoco.mj_forward(model, data)
 
     # design a reference goal pose
-    X_d = sm.SE3.Rx(np.pi, t=np.array([0.5, 0, 0.4]))
+    #X_d = sm.SE3.Rx(np.pi, t=np.array([0.5, 0, 0.4]))
+    X_d = sm.SE3.Ry(-np.pi/2.0, t=np.array([0.3, 0, 0.4]))
 
     # design a pertubation expressed in the end-effector frame
     # - no initial perturbation used here    

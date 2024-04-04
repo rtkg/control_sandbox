@@ -6,7 +6,7 @@ from helpers.damped_pinv import damped_pinv
 import mujoco
 
 
-def cimp_simple(model, data, X_d, V_d, K, B, f_c_entry):
+def cimp_simple(model, data, X_d, V_d, K, B, f_c_entry, n_conf, tcp_site_id):
     """
         Simple Cartesian Impedance Controller formulated according to the algorithm in [1],
         p. 444, Eq. (11.65) without full arm dynamcis compensation (only gravitational load
@@ -36,11 +36,10 @@ def cimp_simple(model, data, X_d, V_d, K, B, f_c_entry):
 
     # current robot ee-pose expressed in the base frame, renormalize orientation
     # quaternion to avoid numerical issues downstream
-    quat = sm.base.smb.r2q(data.site("panda_tool_center_point").xmat.reshape(3, 3))
+    quat = sm.base.smb.r2q(data.site(tcp_site_id).xmat.reshape(3, 3))
     quat = quat / np.linalg.norm(quat)
-    X = sm.SE3.Rt(sm.base.smb.q2r(quat), data.site("panda_tool_center_point").xpos)
-
-    J = mjc_body_jacobian(model, data)  # ee body jacobian expressed in the ee frame
+    X = sm.SE3.Rt(sm.base.smb.q2r(quat), data.site(tcp_site_id).xpos)
+    J = mjc_body_jacobian(model, data, tcp_site_id)  # ee body jacobian expressed in the ee frame
     V = J @ dq  # current ee body twist
     X_e = X.inv() * X_d  # error pose (from TCP to ref)
     X_e_Rot = sm.SE3.Rt(X_e.R) # X_e with zero translation
@@ -88,10 +87,10 @@ def cimp_simple(model, data, X_d, V_d, K, B, f_c_entry):
         f_c = f_c_entry
         
     # Jacobian derivative
-    Jdot = mjc_body_jacobian_derivative(model, data)
+    Jdot = mjc_body_jacobian_derivative(model, data, tcp_site_id)
 
     # task-space manipulator inertia
-    qM = np.zeros((9, 9))
+    qM = np.zeros((len(data.qpos), len(data.qpos)))
     mujoco.mj_fullM(model, qM, data.qM)
     xM = np.linalg.pinv(J @ np.linalg.pinv(qM[0:7, 0:7]) @ J.transpose())
 
@@ -109,11 +108,11 @@ def cimp_simple(model, data, X_d, V_d, K, B, f_c_entry):
     
     # add the nullspace torques which will bias the manipulator to the desired
     # nullspace bias configuration
-    q_ns = model.key('reset_config').qpos[0:7]
+    q_ns = n_conf[0:7]
     K_ns = np.eye(7) * 0.1
     B_ns = 10 * sqrtm(K_ns)
     tau_ns = (np.eye(7) - damped_pinv(J, 1e-5) @ J) @ (K_ns @ (q_ns - q) - B_ns @ dq)
 
     # return x_e and f_e for introspection, in addition to the control torques
-    #return tau, x_e, f_e
+    # return tau, x_e, f_e
     return tau + tau_ns, x_e, f_e
