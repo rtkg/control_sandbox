@@ -8,7 +8,16 @@ import mujoco
 
 
 def hybrid_force_cimp(
-    model, data, X_d, V_d, dV_d, K, A, f, stiffness_frame="reference"
+    model,
+    data,
+    X_d,
+    V_d,
+    dV_d,
+    K,
+    A,
+    f,
+    stiffness_frame="reference",
+    tcp_site_name="panda_tool_center_point",
 ):
     """
     Hybrid force Impedance Controller formulated according to the algorithm in [1],
@@ -28,6 +37,8 @@ def hybrid_force_cimp(
         f (np.ndarray(6)) ... Arbitrary desired contact wrench
         stiffness_frame (string) ... "world", "reference" or "end_effector" - specifies in which frame
                                      K, A, and f are expressed
+        tcp_site_name (string) ... name of the site in the MuJoCo model that represents the end-effector
+
 
     Returns:
         tau (np.ndarray) ... joint control torquesmjc_world_jacobian_derivative
@@ -43,12 +54,16 @@ def hybrid_force_cimp(
 
     # current robot ee-pose expressed in the base frame, renormalize orientation
     # quaternion to avoid numerical issues downstream
-    quat = sm.base.smb.r2q(data.site("panda_tool_center_point").xmat.reshape(3, 3))
+    quat = sm.base.smb.r2q(data.site(tcp_site_name).xmat.reshape(3, 3))
     quat = quat / np.linalg.norm(quat)
-    X = sm.SE3.Rt(sm.base.smb.q2r(quat), data.site("panda_tool_center_point").xpos)
+    X = sm.SE3.Rt(sm.base.smb.q2r(quat), data.site(tcp_site_name).xpos)
 
-    J = mjc_body_jacobian(model, data)  # ee body jacobian expressed in the ee frame
-    Jdot = mjc_body_jacobian_derivative(model, data)  # Jacobian derivative
+    J = mjc_body_jacobian(
+        model, data, tcp_site_name
+    )  # ee body jacobian expressed in the ee frame
+    Jdot = mjc_body_jacobian_derivative(
+        model, data, tcp_site_name
+    )  # Jacobian derivative
     V = J @ dq  # current ee body twist
 
     # =============== Cartesian wrench-resolved control law ==================

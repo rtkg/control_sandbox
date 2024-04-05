@@ -5,7 +5,7 @@ from copy import deepcopy, copy
 import logging
 
 
-def mjc_body_jacobian(model, data):
+def mjc_body_jacobian(model, data, site_name):
     """
     Compute the body jacobian which relates joint velocities to the body twist (i.e.,
     the end-effector linear, angular velocity expressed in the end-effector frame).
@@ -16,6 +16,7 @@ def mjc_body_jacobian(model, data):
     Args:
         model ... MuJoCo model struct
         data ... Mujoco data struct
+        site_name ... Name of the site for which the jacobian should be computed
 
     returns
         jac ... body jacobian
@@ -24,16 +25,16 @@ def mjc_body_jacobian(model, data):
     jacr = np.zeros((3, model.nv), dtype=np.float64)
 
     # compute position/rotation parts of the jacobian
-    mujoco.mj_jacSite(model, data, jacp, jacr, model.site("panda_tool_center_point").id)
+    mujoco.mj_jacSite(model, data, jacp, jacr, model.site(site_name).id)
 
     # MuJoCo returns the body jacobian expressed in the world frame, this needs to be
     # rotated to the end-effector frame
-    R_ew = data.site("panda_tool_center_point").xmat.reshape(3, 3).transpose()
+    R_ew = data.site(site_name).xmat.reshape(3, 3).transpose()
 
     return np.vstack((R_ew @ jacp[:, 0:7], R_ew @ jacr[:, 0:7]))
 
 
-def mjc_world_jacobian(model, data):
+def mjc_world_jacobian(model, data, site_name):
     """
     Compute the body jacobian which relates joint velocities to the body twist (i.e.,
     the end-effector linear, angular velocity expressed in the world frame).
@@ -44,6 +45,7 @@ def mjc_world_jacobian(model, data):
     Args:
         model ... MuJoCo model struct
         data ... Mujoco data struct
+        site_name ... Name of the site for which the jacobian should be computed
 
     returns
         jac ... body jacobian
@@ -52,12 +54,12 @@ def mjc_world_jacobian(model, data):
     jacr = np.zeros((3, model.nv), dtype=np.float64)
 
     # compute position/rotation parts of the jacobian
-    mujoco.mj_jacSite(model, data, jacp, jacr, model.site("panda_tool_center_point").id)
+    mujoco.mj_jacSite(model, data, jacp, jacr, model.site(site_name).id)
 
     return np.vstack((jacp[:, 0:7], jacr[:, 0:7]))
 
 
-def mjc_body_jacobian_derivative(model, data):
+def mjc_body_jacobian_derivative(model, data, site_name):
     """
     Computes the body jacobian derivative via forward simulation by a small timestep
     and numerical differentiation as suggested here: https://github.com/google-deepmind/mujoco/issues/411.
@@ -68,47 +70,48 @@ def mjc_body_jacobian_derivative(model, data):
     Args:
         model ... MuJoCo model struct
         data ... Mujoco data struct
+        site_name ... Name of the site for which the jacobian derivative should be computed
 
     returns
         jac_dot ... time derivative of the body jacobian
     """
 
     h = 1e-10
-    J = mjc_body_jacobian(model, data)
+    J = mjc_body_jacobian(model, data, site_name)
 
     datah = copy(data)
 
     mujoco.mj_integratePos(model, datah.qpos, datah.qvel, h)
     mujoco.mj_fwdPosition(model, datah)
-    Jh = mjc_body_jacobian(model, datah)
+    Jh = mjc_body_jacobian(model, datah, site_name)
     Jdot = (Jh - J) / h
 
     return Jdot
 
 
-def mjc_world_jacobian_derivative(model, data):
+def mjc_world_jacobian_derivative(model, data, site_name):
     """
     Computes the body jacobian derivative (expressed in the world frame) via forward simulation by a small timestep
     and numerical differentiation as suggested here: https://github.com/google-deepmind/mujoco/issues/411.
-    Currently, this method is hardcoded for the model of the Franka Emika Panda robot.
     It is assumed, that the kinematic quantities in 'data' are up-to date, i.e., that
     at least mj_forward(.) was called prior to this function.
 
     Args:
         model ... MuJoCo model struct
         data ... Mujoco data struct
+        site_name ... Name of the site for which the jacobian derivative should be computed
 
     returns
         jac_dot ... time derivative of the body jacobian
     """
 
     h = 1e-10
-    J = mjc_world_jacobian(model, data)
+    J = mjc_world_jacobian(model, data, site_name)
 
     datah = copy(data)
     mujoco.mj_integratePos(model, datah.qpos, datah.qvel, h)
     mujoco.mj_fwdPosition(model, datah)
-    Jh = mjc_world_jacobian(model, datah)
+    Jh = mjc_world_jacobian(model, datah, site_name)
     Jdot = (Jh - J) / h
 
     return Jdot

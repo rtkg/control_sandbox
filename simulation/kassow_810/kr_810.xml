@@ -1,0 +1,117 @@
+<mujoco model="kr2_robot_a810">
+  <compiler angle="radian" meshdir="assets"/>
+
+  <visual>
+    <global offwidth="1920" offheight="1080" />
+  </visual>
+
+  <default>
+    <default class="kassow">
+      <material specular="0.5" shininess="0.10"/>
+      <!--<joint armature="0.1" damping="0.0" axis="0 0 1" range="-6.283185 6.283185"/>-->
+      <general dyntype="none" biastype="affine" ctrlrange="-6.283185 6.283185" />
+
+      <default class="visual">
+        <geom type="mesh" contype="0" conaffinity="0" group="2"/>
+      </default>
+    </default>
+  </default>
+
+ <asset>
+
+    <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512"
+        height="3072"/>
+
+    <material class="kassow" name="black" rgba="0.10 0.10 0.10 1"/>
+
+
+    <!-- Visual meshes -->
+    <mesh name="base" file="a810_Base.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="link2" file="a810_Link2.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="link3" file="a810_Link3.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="link4" file="a810_Link4.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="link5" file="a810_Link5.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="link6" file="a810_Link6.obj" scale="0.001 0.001 0.001"/>
+
+    <mesh name="link7" file="a810_Link7.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="toolflange" file="a810_ToolIOTf.obj" scale="0.001 0.001 0.001"/>
+
+  </asset>
+
+  <worldbody>
+    <light name="top" pos="0 0 2" mode="trackcom"/>
+
+    <body name="base" childclass="kassow">
+      <inertial mass="0.629769" pos="0 0 0" diaginertia="0.003 0.003 0.003"/>
+      <geom mesh="base" material="black"  class="visual"/>
+      
+      <geom fromto="0 0 0 0.15 0 0" size="0.005" quat="0.707107 0 0.707107 0" type="cylinder" rgba="1 0 0 1"/>
+      <geom fromto="0 0 0 0 0.15 0" size="0.005" quat="0.707107 0.707107 0 0" type="cylinder" rgba="0 1 0 1"/>
+
+      <body name="link1" pos="0 0 0.035">
+        <inertial pos="0 0 0.13685" mass="4.58" diaginertia="0.003 0.003 0.003"/>
+        <geom mesh="link2" material="black" pos="0 0 0.169" class="visual"/>
+        <joint name="joint1" axis="0 0 1" range="-6.28319 6.28319" damping="0.1"/>
+
+        <body name="linkJ2" pos="0.05 0 0.2737">
+          <inertial pos="-0.0032925 -0.00564334 0.0115237" quat="0.966517 0.223952 -0.122026 -0.0282748" mass="6.53" diaginertia="0.022256 0.022256 0.006"/>
+          <geom mesh="link3" material="black" pos="0 -0.0857 0" class="visual"/>
+          <joint name="joint2" axis="0 1 0" range="-1.22173 3.14159" damping="0.1"/>
+          <geom size="0.015 0.075" pos="0 -0.01 0" quat="0.707107 0.707107 0 0" type="cylinder" rgba="1 0.423529 0.0392157 1"/>
+          
+          <body name="link3" pos="-0.05 -0.0857 0.274">
+            <inertial pos="0 0 0" mass="2.9" diaginertia="0.003 0.003 0.003"/>
+            <joint name="joint3" axis="0 0 1" range="-6.28319 6.28319" damping="0.1"/>
+            <geom mesh="link4" material="black" pos="0 0 0" class="visual"/>
+
+            <body name="linkJ4" pos="0.04 0 0.1429">
+              <inertial pos="-0.00319613 0.0126965 0.0134237" quat="0.971184 -0.213337 -0.103774 0.0227958" mass="4.13" diaginertia="0.0168816 0.0168816 0.006"/>
+              <joint name="joint4" axis="0 1 0" range="-1.22173 3.14159" damping="0.1"/>
+              <geom size="0.015 0.0645" pos="0 0.013 0" quat="0.707107 0.707107 0 0" type="cylinder" rgba="1 0.423529 0.0392157 1"/>
+              <geom mesh="link5" material="black" pos="0 0 0" class="visual"/>
+
+              <body name="link5" pos="-0.04 0.08405 0.271">
+	              <inertial pos="0 0 0" mass="1.7" diaginertia="0.003 0.003 0.003"/>
+	              <joint name="joint5" axis="0 0 1" range="-6.28319 6.28319" damping="0.1"/>
+                <geom mesh="link6" material="black" pos="0 0 0" class="visual"/>
+
+                <body name="linkJ6" pos="0 0 0.1035">
+                  <inertial pos="0 0.0575 0.002" quat="0.693773 0.720193 0 0" mass="3.6" diaginertia="0.0163185 0.0163185 0.006"/>
+		              <joint name="joint6" axis="0 1 0" range="-6.28319 6.28319" damping="0.1"/>
+                  <geom mesh="link7" material="black" pos="0 0 0" class="visual"/>
+
+                  <body name="end_effector" pos="0 0.111 0.108">
+		                <inertial pos="0 0 -0.0197" mass="0.56" diaginertia="0.003 0.003 0.003"/>
+		                <joint name="joint7" pos="0 0 0" axis="0 0 1" range="-6.28319 6.28319" damping="0.1"/>
+                    <geom mesh="toolflange" material="black" pos="0 0 0" class="visual"/>
+                    <site name="tool_center_point" size="0.005 0.005 0.005" rgba="1.0 0.0 0.0 1" pos="0.0 0.0 0.0" axisangle="1.0 0.0 0.0 0.0"/>
+                    
+                    <geom fromto="0 0 0 0 0 0.05" size="0.005" quat="1.0 0 0 0" type="cylinder" rgba="0 0 1 1"/>
+                    <geom fromto="0 0 0 0 0.05 0" size="0.005" quat="0.707107 0.707107 0 0" type="cylinder" rgba="0 1 0 1"/>
+                    <geom fromto="0 0 0 0.05 0 0" size="0.005" quat="0.707107 0 0.707107 0" type="cylinder" rgba="1 0 0 1"/>
+		            </body>
+	            </body>
+	          </body>
+	        </body>
+	      </body>
+      </body>
+    </body>
+  </body>
+  </worldbody>
+
+
+  <actuator>
+    <motor class="kassow" name="kassow_joint1_actuator" ctrllimited="true" ctrlrange="-284.0 284.0" gear="1.0" joint="joint1"/>
+    <motor class="kassow" name="kassow_joint2_actuator" ctrllimited="true" ctrlrange="-284.0 284.0" gear="1.0" joint="joint2"/>
+    <motor class="kassow" name="kassow_joint3_actuator" ctrllimited="true" ctrlrange="-142.0 142.0" gear="1.0" joint="joint3"/>
+    <motor class="kassow" name="kassow_joint4_actuator" ctrllimited="true" ctrlrange="-142.0 142.0" gear="1.0" joint="joint4"/>
+    <motor class="kassow" name="kassow_joint5_actuator" ctrllimited="true" ctrlrange="-60.0 60.0" gear="1.0" joint="joint5"/>
+    <motor class="kassow" name="kassow_joint6_actuator" ctrllimited="true" ctrlrange="-60.0 60.0" gear="1.0" joint="joint6"/>
+    <motor class="kassow" name="kassow_joint7_actuator" ctrllimited="true" ctrlrange="-60.0 60.0" gear="1.0" joint="joint7"/>
+  </actuator>
+
+  <keyframe>
+    <key name="reset_config" qpos="0.0 0.3 0.0 2.2 0.0 0.6 0.0"/>
+    <key name="nullspace_config" qpos="0.0 0.3 0.0 2.2 0.0 0.6 0.0"/>
+  </keyframe>
+</mujoco>

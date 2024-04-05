@@ -10,7 +10,17 @@ import matplotlib
 
 
 def simulate(
-    model, data, X_d, V_d, dV_d, K, A, f, stiffness_frame="reference", plotting=True
+    model,
+    data,
+    X_d,
+    V_d,
+    dV_d,
+    K,
+    A,
+    f,
+    stiffness_frame="reference",
+    tcp_site_name="panda_tool_center_point",
+    plotting=True,
 ):
     duration = model.opt.timestep * len(X_d)
 
@@ -24,7 +34,7 @@ def simulate(
         # Close the viewer automatically after the simulation duration expires
         for i, t in enumerate(t_vec):
             step_start = time.time()
-            x[i, :] = data.site("panda_tool_center_point").xpos
+            x[i, :] = data.site(tcp_site_name).xpos
             x_d[i, :] = X_d[i].t
 
             # advances simulation by all non-control dependent quantities
@@ -33,7 +43,16 @@ def simulate(
             # evaluate the controller to get the control torques, as well as pose error
             # and control wrenches for introspection
             tau, x_e[i, :], f_e[i, :] = hybrid_force_cimp(
-                model, data, X_d[i], V_d[i], dV_d[i], K, A, f, stiffness_frame
+                model,
+                data,
+                X_d[i],
+                V_d[i],
+                dV_d[i],
+                K,
+                A,
+                f,
+                stiffness_frame,
+                tcp_site_name,
             )
 
             # set the MuJoCo controls according to the computed torques
@@ -124,6 +143,9 @@ if __name__ == "__main__":
         + "/simulation/franka_emika_panda/panda_obstacle.xml"
     )
 
+    # name of the controlled tcp site
+    tcp_site_name = "panda_tool_center_point"
+
     model = mujoco.MjModel.from_xml_path(xml_path)
     # The MuJoCo data instance is updated during the simulation. It's the central
     # element which stores all relevant variables
@@ -136,8 +158,8 @@ if __name__ == "__main__":
 
     # current ee pose- xM @ Jdot @ data.qvel[0:7]
     X_0 = sm.SE3.Rt(
-        data.site("panda_tool_center_point").xmat.reshape(3, 3),
-        data.site("panda_tool_center_point").xpos,
+        data.site(tcp_site_name).xmat.reshape(3, 3),
+        data.site(tcp_site_name).xpos,
         check=False,
     )
 
@@ -150,4 +172,6 @@ if __name__ == "__main__":
     X_d, V_d, dV_d = generate_line_motion(X_0, timestep, duration, 2)
 
     # run control & sim loop
-    simulate(model, data, X_d, V_d, dV_d, K, A, f, stiffness_frame, plotting)
+    simulate(
+        model, data, X_d, V_d, dV_d, K, A, f, stiffness_frame, tcp_site_name, plotting
+    )
