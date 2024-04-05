@@ -138,10 +138,10 @@ if __name__ == "__main__":
     stiffness_frame = "end_effector"
 
     # load a model of the manipulator
-    xml_path = (
-        str(Path(__file__).parent.resolve())
-        + "/simulation/franka_emika_panda/panda_grinder.xml"
-    )
+    # xml_path = (
+    #    str(Path(__file__).parent.resolve())
+    #    + "/simulation/franka_emika_panda/panda_grinder.xml"
+    # )
     xml_path = str(Path(__file__).parent.resolve()) + "/simulation/kassow_810/scene.xml"
 
     # name of the controlled tcp site
