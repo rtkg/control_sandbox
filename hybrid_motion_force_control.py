@@ -142,10 +142,7 @@ if __name__ == "__main__":
         str(Path(__file__).parent.resolve())
         + "/simulation/franka_emika_panda/panda_grinder.xml"
     )
-    xml_path = (
-        str(Path(__file__).parent.resolve())
-        + "/simulation/kassow_810/kr_810_grinder.xml"
-    )
+    xml_path = str(Path(__file__).parent.resolve()) + "/simulation/kassow_810/scene.xml"
 
     # name of the controlled tcp site
     tcp_site_name = "tool_center_point"
