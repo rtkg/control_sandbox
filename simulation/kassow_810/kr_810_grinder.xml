@@ -10,7 +10,7 @@
   <default>
     <default class="kassow">
       <material specular="0.5" shininess="0.10"/>
-      <joint armature="0.1" damping="0.1" axis="0 0 1" range="-6.283185 6.283185"/>
+      <joint armature="0.5" damping="0.1" axis="0 0 1" range="-6.283185 6.283185"/>
       <general dyntype="none" biastype="affine" ctrlrange="-6.283185 6.283185" />
 
       <default class="visual">

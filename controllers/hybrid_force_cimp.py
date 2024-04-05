@@ -132,7 +132,8 @@ def hybrid_force_cimp(
     # compute the control acceleration and wrench and project them onto their respective independent subspaces
     # force control is feedforward only ([1], p. 441, eq. (11.61))
     a_u = E_B @ v_e + E_K @ x_e + a_ff
-    f_u = xM @ E_P @ a_u + (np.eye(6) - E_P) @ E_f
+    D = np.eye(6) * 2  # some viscous damping on the feedforward force
+    f_u = xM @ E_P @ a_u + (np.eye(6) - E_P) @ (E_f + D @ v_e)
 
     # Mapping the external control wrench to joint torques and compensating
     # the manipulator dynamics (gravity + coriolis / centripetal only).
