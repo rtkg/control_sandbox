@@ -9,6 +9,9 @@ It is recommended to set up a new virtual environment in Python (tested with ven
 pip install -r requirements.txt
 ```
 
+#### Installation and running on OSX
+To run and debug the project with VScode on OSX, you need to run it with the mjpython interperter. Use the "⌘ + Shift + P" to open configuration entry for the "Python: Select Interpreter" and fill in the "Enter interpret path: " with the mjpython location, for example "./.venv/bin/mjpython".
+
 ## Usage
 
 Simply run the scripts in the root folder in a shell or debugger, e.g.:

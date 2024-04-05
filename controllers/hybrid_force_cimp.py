@@ -17,7 +17,7 @@ def hybrid_force_cimp(
     A,
     f,
     stiffness_frame="reference",
-    tcp_site_name="panda_tool_center_point",
+    tcp_site_name="tool_center_point",
 ):
     """
     Hybrid force Impedance Controller formulated according to the algorithm in [1],
@@ -75,7 +75,11 @@ def hybrid_force_cimp(
     Ad_e = X_e.Ad()  # adjoint of the error pose
 
     # Projection matrix used to separate motion- and force controlled directions
-    P = np.eye(6) - A.T @ np.linalg.inv(A @ A.T) @ A
+    if A is not None:
+        P = np.eye(6) - A.T @ np.linalg.inv(A @ A.T) @ A
+    else:
+        # no constraints, i.e., full motion control
+        P = np.eye(6)
 
     if stiffness_frame == "end_effector":
         # nothing needs to be done, the control law is formulated w.r.t. the end-effector anyhow

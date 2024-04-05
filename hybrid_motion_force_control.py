@@ -19,7 +19,7 @@ def simulate(
     A,
     f,
     stiffness_frame="reference",
-    tcp_site_name="panda_tool_center_point",
+    tcp_site_name="tool_center_point",
     plotting=True,
 ):
     duration = model.opt.timestep * len(X_d)
@@ -137,14 +137,18 @@ if __name__ == "__main__":
     # "world", "reference" or "end_effector" - specifies in which frame K, A, and f are expressed
     stiffness_frame = "end_effector"
 
-    # load a model of the Panda manipulator
+    # load a model of the manipulator
     xml_path = (
         str(Path(__file__).parent.resolve())
-        + "/simulation/franka_emika_panda/panda_obstacle.xml"
+        + "/simulation/franka_emika_panda/panda_grinder.xml"
+    )
+    xml_path = (
+        str(Path(__file__).parent.resolve())
+        + "/simulation/kassow_810/kr_810_grinder.xml"
     )
 
     # name of the controlled tcp site
-    tcp_site_name = "panda_tool_center_point"
+    tcp_site_name = "tool_center_point"
 
     model = mujoco.MjModel.from_xml_path(xml_path)
     # The MuJoCo data instance is updated during the simulation. It's the central

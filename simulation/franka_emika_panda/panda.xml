@@ -10,7 +10,7 @@
   <default>
     <default class="panda">
       <material specular="0.5" shininess="0.25"/>
-      <joint armature="0.1" damping="0.0" axis="0 0 1" range="-6.283185 6.283185"/>
+      <joint armature="0.0" damping="0.1" axis="0 0 1" range="-6.283185 6.283185"/>
       <general dyntype="none" biastype="affine" ctrlrange="-6.283185 6.283185" forcerange="-87 87"/>
       <default class="finger">
         <joint axis="0 1 0" type="slide" range="0 0.04"/>
@@ -207,7 +207,7 @@
                       <camera name="realsense_1" pos="0.1 0.0 0.0"/>
                       <camera name="realsense_2" pos ="-0.1 0.0 0.0"/>
                       <inertial mass="0.73" pos="-0.01 0 0.03" diaginertia="0.001 0.0025 0.0017"/>
-                      <site name="panda_tool_center_point" size="0.005 0.005 0.005" rgba="1.0 0.0 0.0 1" pos="0.0 0.0 0.1034" axisangle="1.0 0.0 0.0 0.0"/>
+                      <site name="tool_center_point" size="0.005 0.005 0.005" rgba="1.0 0.0 0.0 1" pos="0.0 0.0 0.1034" axisangle="1.0 0.0 0.0 0.0"/>
                       <geom mesh="hand_0" material="off_white" class="visual"/>
                       <geom mesh="hand_1" material="black" class="visual"/>
                       <geom mesh="hand_2" material="black" class="visual"/>

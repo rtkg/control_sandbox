@@ -1,4 +1,4 @@
-<mujoco model="panda">
+<mujoco model="panda_grinder">
   <compiler angle="radian" meshdir="assets" autolimits="true"/>
 
   <visual>
@@ -12,7 +12,7 @@
   <default>
     <default class="panda">
       <material specular="0.5" shininess="0.25"/>
-      <joint armature="0.1" damping="1.0" axis="0 0 1" range="-6.283185 6.283185"/>
+      <joint armature="0.1" damping="0.1" axis="0 0 1" range="-6.283185 6.283185"/>
       <general dyntype="none" biastype="affine" ctrlrange="-6.283185 6.283185" forcerange="-87 87"/>
 
       <default class="visual">
@@ -192,7 +192,7 @@
                       <camera name="realsense_1" pos="0.1 0.0 0.0"/>
                       <camera name="realsense_2" pos ="-0.1 0.0 0.0"/>
                       <inertial mass="0.73" pos="-0.01 0 0.03" diaginertia="0.001 0.0025 0.0017"/>
-                      <site name="panda_tool_center_point" size="0.002 0.002 0.002" rgba="1.0 0.0 0.0 1" pos="0.0 0.0 0.1" axisangle="1.0 0.0 0.0 0.0"/>
+                      <site name="tool_center_point" size="0.002 0.002 0.002" rgba="1.0 0.0 0.0 1" pos="0.0 0.0 0.1" axisangle="1.0 0.0 0.0 0.0"/>
                       <geom mesh="hand_0" material="off_white" class="visual"/>
                       <geom mesh="hand_1" material="black" class="visual"/>
                       <geom mesh="hand_2" material="black" class="visual"/>
@@ -225,7 +225,7 @@
   </actuator>
 
   <keyframe>
-    <key name="reset_config" qpos="0.0 -0.3 0.0 -2.2 0.0 2.0 0.78" />
-    <key name="nullspace_config" qpos="0.0 -0.3 0.0 -2.2 0.0 2.0 0.78" />
+    <key name="reset_config" qpos="0.0 -0.3 0.0 -2.2 0.0 2.0 -2.36" />
+    <key name="nullspace_config" qpos="0.0 -0.3 0.0 -2.2 0.0 2.0 -2.36" />
   </keyframe>
 </mujoco>

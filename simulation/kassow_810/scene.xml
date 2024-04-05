@@ -1,6 +1,6 @@
 <mujoco model="kr scene">
 
-  <include file="kr_810.xml"/>
+  <include file="kr_810_grinder.xml"/>
 
   <statistic center="0.3 0 0.4" extent="1"/>
 

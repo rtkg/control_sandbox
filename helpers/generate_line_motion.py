@@ -14,7 +14,7 @@ def generate_line_motion(X_0, timestep, traj_duration, n_traj=1):
         # minimum-jerk trajectory in R^3 going in positive y
         P, dP, ddP, _ = generate_motion_profile(
             np.zeros(3),
-            np.array([0, 0.2, 0]),
+            np.array([0, -0.2, 0]),
             np.arange(0, traj_duration / 2.0, timestep),
         )
         for p, dp, ddp in zip(P, dP, ddP):
@@ -26,7 +26,7 @@ def generate_line_motion(X_0, timestep, traj_duration, n_traj=1):
 
         # minimum-jerk trajectory in R^3 going in negative y
         P, dP, ddP, _ = generate_motion_profile(
-            np.array([0, 0.2, 0]),
+            np.array([0, -0.2, 0]),
             np.zeros(3),
             np.arange(0, traj_duration / 2.0, timestep),
         )
